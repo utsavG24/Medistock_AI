@@ -1,0 +1,327 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Current Stock - MEDISTOCK AI</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        
+<div class="logo">
+    <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
+    <div>
+        <h2>MEDISTOCK</h2>
+        <span>Stock. Track. Forecast.</span>
+    </div>
+</div>
+
+
+        <nav class="navigation">
+
+            <p class="menu-title">MAIN MENU</p>
+
+            <a href="index.html" class="nav-item">
+                <span>▣</span>
+                Dashboard
+            </a>
+
+            <a href="stock.html" class="nav-item active">
+                <span>▤</span>
+                Current Stock
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>⚠</span>
+                Expiring Stock
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>◈</span>
+                Stock Requirement
+            </a>
+
+
+            <p class="menu-title">MANAGEMENT</p>
+
+            <a href="#" class="nav-item">
+                <span>▥</span>
+                Medicines
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>↗</span>
+                Sales Analytics
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>⚙</span>
+                Settings
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <div class="admin-avatar">A</div>
+
+            <div class="admin-info">
+                <strong>Admin</strong>
+                <span>Pharmacy Manager</span>
+            </div>
+
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- HEADER -->
+        <header class="topbar">
+
+            <div>
+                <h1>Current Stock</h1>
+
+                <p>
+                    Manage and monitor your pharmacy inventory.
+                </p>
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification">
+                    🔔
+                    <span class="notification-dot"></span>
+                </button>
+
+                <div class="date">
+                    📅
+                    <span>07 Aug 2026</span>
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- INVENTORY SUMMARY -->
+
+        <section class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-icon medicines-icon">
+                    💊
+                </div>
+
+                <div>
+                    <p>Total Medicines</p>
+                    <h2 id="totalMedicines">0</h2>
+                    <small>Medicines in inventory</small>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon stock-icon">
+                    📦
+                </div>
+
+                <div>
+                    <p>Total Units</p>
+                    <h2 id="totalUnits">0</h2>
+                    <small>Units currently available</small>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card warning-card">
+
+                <div class="stat-icon warning-icon">
+                    ⚠️
+                </div>
+
+                <div>
+                    <p>Low Stock</p>
+                    <h2 id="lowStock">0</h2>
+                    <small>Needs attention</small>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card danger-card">
+
+                <div class="stat-icon danger-icon">
+                    ⛔
+                </div>
+
+                <div>
+                    <p>Out of Stock</p>
+                    <h2 id="outOfStock">0</h2>
+                    <small>Requires restocking</small>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- SEARCH + ACTIONS -->
+
+        <section class="panel">
+
+            <div class="stock-toolbar">
+
+                <div class="search-box">
+
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search medicine..."
+                    >
+
+                </div>
+
+
+                <div class="filter-box">
+
+                    <select id="categoryFilter">
+
+                        <option value="all">
+                            All Categories
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <button
+                    class="add-button"
+                    onclick="openAddMedicine()"
+                >
+                    + Add Medicine
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- STOCK TABLE -->
+
+        <section class="panel stock-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h3>Medicine Inventory</h3>
+
+                    <p>
+                        All medicines currently stored in the pharmacy.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Medicine</th>
+
+                            <th>Category</th>
+
+                            <th>Batch</th>
+
+                            <th>Quantity</th>
+
+                            <th>Minimum Stock</th>
+
+                            <th>Expiry Date</th>
+
+                            <th>Status</th>
+                            <th>Actions</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="medicineTableBody">
+
+                        <!-- MongoDB medicines will appear here -->
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+    </main>
+<!-- Sell / Return / Exchange Modal -->
+<div class="action-modal-overlay" id="actionModalOverlay">
+    <div class="action-modal">
+        <h3 id="actionModalTitle">Sell Stock</h3>
+        <p id="actionModalMedicine" style="font-weight:600; margin:4px 0;"></p>
+        <p id="actionModalStock" style="color:#6b7280; font-size:13px; margin-bottom:16px;"></p>
+
+        <label for="actionQuantity">Quantity</label>
+        <input type="number" id="actionQuantity" min="1">
+
+        <div id="actionReasonField">
+            <label for="actionReason">Reason (optional)</label>
+            <input type="text" id="actionReason" placeholder="e.g. damaged packaging">
+        </div>
+        <div id="actionReceivedField" style="display:none;">
+    <label for="actionReceived">Replacement units received</label>
+    <input type="number" id="actionReceived" min="0" placeholder="0 if none">
+</div>
+
+        <div id="actionMessage" style="font-size:13px; margin:10px 0; min-height:16px;"></div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="action-modal-btn cancel" onclick="closeActionModal()">Cancel</button>
+            <button class="action-modal-btn confirm" onclick="submitAction()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+    <!-- JAVASCRIPT -->
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+
+</html>
+```

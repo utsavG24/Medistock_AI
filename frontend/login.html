@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - MEDISTOCK AI</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/login.css">
+    <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+</head>
+<body>
+
+    <div class="auth-wrapper">
+
+        <!-- DECORATIVE BACKGROUND (pill/capsule/cross shapes, pure SVG, no external images) -->
+        <div class="auth-decor">
+            <svg class="decor-1" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="3"/><rect x="2" y="9" width="10" height="6" rx="3" fill="#fff" fill-opacity="0.4"/></svg>
+            <svg class="decor-2" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg>
+            <svg class="decor-3" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="3"/><rect x="2" y="9" width="10" height="6" rx="3" fill="#fff" fill-opacity="0.4"/></svg>
+            <svg class="decor-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10 2h4v8h8v4h-8v8h-4v-8H2v-4h8V2z"/></svg>
+            <svg class="decor-5" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg>
+        </div>
+
+        <div class="auth-card">
+
+         
+<div class="auth-logo">
+    <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
+    <div>
+        <h2 style="margin:0;">MEDISTOCK</h2>
+        <span>Stock. Track. Forecast.</span>
+    </div>
+</div>
+
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="loginTab" onclick="switchTab('login')">Login</div>
+                <div class="auth-tab" id="signupTab" onclick="switchTab('signup')">Sign Up</div>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <div class="auth-form-section active" id="loginSection">
+                <form class="auth-form" id="loginForm">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" required>
+
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+
+                    <button type="submit" class="auth-submit">Log In</button>
+                </form>
+                <div class="auth-message" id="loginMessage"></div>
+            </div>
+
+            <!-- SIGNUP FORM -->
+            <div class="auth-form-section" id="signupSection">
+                <form class="auth-form" id="signupForm">
+                    <label for="signupFullName">Full Name</label>
+                    <input type="text" id="signupFullName" required>
+
+                    <label for="signupUsername">Username</label>
+                    <input type="text" id="signupUsername" required>
+
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required>
+                    <small>At least 8 characters, 1 capital letter, 1 special character</small>
+
+                    <button type="submit" class="auth-submit">Create Account</button>
+                </form>
+                <div class="auth-message" id="signupMessage"></div>
+            </div>
+
+            <a href="home.html" class="auth-back">&larr; Back to home</a>
+
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+</body>
+</html>

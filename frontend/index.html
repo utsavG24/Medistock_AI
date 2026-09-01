@@ -1,0 +1,323 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MediStock AI - Pharmacy Inventory</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        
+<div class="logo">
+    <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
+    <div>
+        <h2>MEDISTOCK</h2>
+        <span>Stock. Track. Forecast.</span>
+    </div>
+</div>
+
+        <nav class="navigation">
+
+            <p class="menu-title">MAIN MENU</p>
+
+            <a href="#" class="nav-item active">
+                <span>▣</span>
+                Dashboard
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>▤</span>
+                Current Stock
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>⚠</span>
+                Expiring Stock
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>◈</span>
+                Stock Requirement
+            </a>
+
+            <p class="menu-title">MANAGEMENT</p>
+
+            <a href="#" class="nav-item">
+                <span>▥</span>
+                Medicines
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>↗</span>
+                Sales Analytics
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>⚙</span>
+                Settings
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="admin-avatar">A</div>
+
+            <div class="admin-info">
+                <strong>Admin</strong>
+                <span>Pharmacy Manager</span>
+            </div>
+
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- TOP BAR -->
+        <header class="topbar">
+
+            <div>
+                <h1>Dashboard</h1>
+                <p>Welcome back! Here's your pharmacy overview.</p>
+            </div>
+
+            <div class="topbar-right">
+
+                <button class="notification">
+                    🔔
+                    <span class="notification-dot"></span>
+                </button>
+
+                <div class="date">
+                    📅
+                    <span>18 Aug 2026</span>
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- KPI CARDS -->
+        <section class="stats-grid">
+
+            <div class="stat-card">
+                <div class="stat-icon medicines-icon">💊</div>
+
+                <div>
+                    <p>Total Medicines</p>
+                    <h2 id="totalMedicines">248</h2>
+                    <span class="positive">↑ 8.2%</span>
+                    <small>from last month</small>
+                </div>
+            </div>
+
+
+            <div class="stat-card">
+                <div class="stat-icon stock-icon">📦</div>
+
+                <div>
+                    <p>Total Stock</p>
+                    <h2 id="totalStock">8,420</h2>
+                    <span class="positive">↑ 4.6%</span>
+                    <small>units available</small>
+                </div>
+            </div>
+
+
+            <div class="stat-card warning-card">
+                <div class="stat-icon warning-icon">⚠️</div>
+
+                <div>
+                    <p>Low Stock</p>
+                    <h2 id="lowStockCount">18</h2>
+                    <span class="negative">Needs attention</span>
+                </div>
+            </div>
+
+
+            <div class="stat-card danger-card">
+                <div class="stat-icon danger-icon">⏳</div>
+
+                <div>
+                    <p>Expiring Soon</p>
+                    <h2 id="expiringSoonCount">12</h2>
+                    <span class="negative">Within 60 days</span>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- DASHBOARD GRID -->
+        <section class="dashboard-grid">
+
+            <!-- SALES CHART PLACEHOLDER -->
+            <div class="panel sales-panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h3>Inventory Overview</h3>
+                        <p>Stock movement over the last 6 months</p>
+                    </div>
+
+                    <select>
+                        <option>Last 6 months</option>
+                        <option>Last 30 days</option>
+                        <option>Last year</option>
+                    </select>
+
+                </div>
+
+                <div class="chart-placeholder">
+
+                    <div class="chart-y-axis">
+                        <span>1000</span>
+                        <span>750</span>
+                        <span>500</span>
+                        <span>250</span>
+                        <span>0</span>
+                    </div>
+
+                    <div class="fake-chart">
+
+                        <div class="chart-line">
+                            <span style="height: 40%;"></span>
+                            <span style="height: 55%;"></span>
+                            <span style="height: 48%;"></span>
+                            <span style="height: 70%;"></span>
+                            <span style="height: 62%;"></span>
+                            <span style="height: 85%;"></span>
+                        </div>
+
+                        <div class="chart-months">
+                            <span>Mar</span>
+                            <span>Apr</span>
+                            <span>May</span>
+                            <span>Jun</span>
+                            <span>Jul</span>
+                            <span>Aug</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- AI INSIGHTS -->
+            <div class="panel ai-panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h3>🤖 AI Insights</h3>
+                        <p>Smart inventory recommendations</p>
+                    </div>
+
+                </div>
+
+                <div class="ai-insight high">
+
+                    <div class="insight-icon">!</div>
+
+                    <div>
+                        <strong>5 medicines may run out</strong>
+                        <p>Based on predicted demand for the next 7 days.</p>
+                    </div>
+
+                </div>
+
+
+                <div class="ai-insight medium">
+
+                    <div class="insight-icon">!</div>
+
+                    <div>
+                        <strong>12 medicines are expiring</strong>
+                        <p>Review stock expiring within 60 days.</p>
+                    </div>
+
+                </div>
+
+
+                <div class="ai-insight good">
+
+                    <div class="insight-icon">✓</div>
+
+                    <div>
+                        <strong>73% stock level is healthy</strong>
+                        <p>Current inventory is within the safe range.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- CURRENT STOCK -->
+        <section class="panel stock-panel">
+
+            <div class="panel-header">
+
+                <div>
+                    <h3>Current Stock</h3>
+                    <p>Recently updated inventory</p>
+                </div>
+
+                <button class="view-button">
+                    View All →
+                </button>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Medicine</th>
+                            <th>Category</th>
+                            <th>Batch</th>
+                            <th>Stock</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                  <tbody id="currentStockBody">
+</tbody>
+
+</table>
+                        
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
+```
