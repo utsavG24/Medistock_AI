@@ -316,6 +316,51 @@
         </div>
     </div>
 </div>
+<!-- Add Medicine Modal -->
+<div class="action-modal-overlay" id="addMedicineOverlay">
+    <div class="action-modal" style="width: 420px;">
+        <h3>Add Medicine</h3>
+
+        <label for="addName">Medicine Name</label>
+        <input type="text" id="addName">
+
+        <label for="addCategory">Category</label>
+        <input type="text" id="addCategory">
+
+        <label for="addManufacturer">Manufacturer</label>
+        <input type="text" id="addManufacturer">
+
+        <label for="addUnit">Unit (e.g. Tablet, Syrup)</label>
+        <input type="text" id="addUnit">
+
+        <label for="addUnitPrice">Unit Price</label>
+        <input type="number" id="addUnitPrice" min="0" step="0.01">
+
+        <label for="addReorderLevel">Reorder Level</label>
+        <input type="number" id="addReorderLevel" min="0">
+
+        <hr style="margin:16px 0; border:none; border-top:1px solid #eee;">
+
+        <label for="addBatchNumber">Batch Number</label>
+        <input type="text" id="addBatchNumber">
+
+        <label for="addQuantity">Initial Quantity</label>
+        <input type="number" id="addQuantity" min="1">
+
+        <label for="addManufactureDate">Manufacture Date</label>
+        <input type="date" id="addManufactureDate">
+
+        <label for="addExpiryDate">Expiry Date</label>
+        <input type="date" id="addExpiryDate">
+
+        <div id="addMedicineMessage" style="font-size:13px; margin:10px 0; min-height:16px; color:#dc2626;"></div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="action-modal-btn cancel" onclick="closeAddMedicineModal()">Cancel</button>
+            <button class="action-modal-btn confirm" onclick="submitAddMedicine()">Add Medicine</button>
+        </div>
+    </div>
+</div>
 
     <!-- JAVASCRIPT -->
     <script src="js/auth.js"></script>

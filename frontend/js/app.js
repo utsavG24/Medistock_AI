@@ -324,7 +324,79 @@ function renderStockRows(data, tableBody) {
     });
 }
 
+// ======================================================
+// ADD MEDICINE MODAL
+// ======================================================
 
+function openAddMedicine() {
+    document.getElementById("addMedicineMessage").textContent = "";
+    [
+        "addName", "addCategory", "addManufacturer", "addUnit",
+        "addUnitPrice", "addReorderLevel", "addBatchNumber",
+        "addQuantity", "addManufactureDate", "addExpiryDate"
+    ].forEach(id => document.getElementById(id).value = "");
+
+    document.getElementById("addMedicineOverlay").style.display = "flex";
+}
+
+function closeAddMedicineModal() {
+    document.getElementById("addMedicineOverlay").style.display = "none";
+}
+
+async function submitAddMedicine() {
+    const messageEl = document.getElementById("addMedicineMessage");
+    messageEl.textContent = "";
+
+    const payload = {
+        name: document.getElementById("addName").value.trim(),
+        category: document.getElementById("addCategory").value.trim(),
+        manufacturer: document.getElementById("addManufacturer").value.trim(),
+        unit: document.getElementById("addUnit").value.trim(),
+        unit_price: parseFloat(document.getElementById("addUnitPrice").value),
+        reorder_level: parseInt(document.getElementById("addReorderLevel").value, 10),
+        batch_number: document.getElementById("addBatchNumber").value.trim(),
+        quantity: parseInt(document.getElementById("addQuantity").value, 10),
+        manufacture_date: document.getElementById("addManufactureDate").value,
+        expiry_date: document.getElementById("addExpiryDate").value
+    };
+
+    if (!payload.name || !payload.category || !payload.manufacturer || !payload.unit ||
+        !payload.batch_number || !payload.manufacture_date || !payload.expiry_date) {
+        messageEl.textContent = "Please fill in all fields.";
+        return;
+    }
+    if (isNaN(payload.unit_price) || isNaN(payload.reorder_level) || isNaN(payload.quantity)) {
+        messageEl.textContent = "Price, reorder level, and quantity must be valid numbers.";
+        return;
+    }
+    if (payload.expiry_date <= payload.manufacture_date) {
+        messageEl.textContent = "Expiry date must be after manufacture date.";
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/medicines`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            messageEl.textContent = data.detail || "Failed to add medicine.";
+            return;
+        }
+
+        closeAddMedicineModal();
+        await loadStockPage();  // refresh table, stats, and category dropdown
+
+    } catch (error) {
+        console.error("Add medicine error:", error);
+        messageEl.textContent = "Unable to reach the server.";
+    }
+}
 
 // ======================================================
 // UTILITIES

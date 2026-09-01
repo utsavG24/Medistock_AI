@@ -72,6 +72,18 @@ class SupplierReturnRequest(BaseModel):
     quantity_received: int = 0
     reason: str | None = None
 
+class AddMedicineRequest(BaseModel):
+    name: str
+    category: str
+    manufacturer: str
+    unit: str
+    unit_price: float
+    reorder_level: int
+    batch_number: str
+    quantity: int
+    manufacture_date: date
+    expiry_date: date
+
 @app.get("/medicines")
 def get_medicines(db: Session = Depends(get_db)):
     return db.query(Medicine).all()
@@ -336,3 +348,37 @@ def get_transactions(db: Session = Depends(get_db)):
 
     transactions.sort(key=lambda t: t["date"], reverse=True)
     return transactions
+
+@app.post("/medicines")
+def add_medicine(data: AddMedicineRequest, db: Session = Depends(get_db)):
+    if data.expiry_date <= data.manufacture_date:
+        raise HTTPException(status_code=400, detail="Expiry date must be after manufacture date")
+    if data.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Initial quantity must be greater than 0")
+
+    new_medicine = Medicine(
+        name=data.name,
+        category=data.category,
+        manufacturer=data.manufacturer,
+        unit=data.unit,
+        unit_price=data.unit_price,
+        reorder_level=data.reorder_level
+    )
+    db.add(new_medicine)
+    db.flush()  # assigns new_medicine.medicine_id without committing yet
+
+    new_batch = InventoryBatch(
+        medicine_id=new_medicine.medicine_id,
+        batch_number=data.batch_number,
+        quantity=data.quantity,
+        manufacture_date=data.manufacture_date,
+        expiry_date=data.expiry_date
+    )
+    db.add(new_batch)
+    db.commit()
+
+    return {
+        "message": "Medicine and initial batch added successfully",
+        "medicine_id": new_medicine.medicine_id,
+        "batch_id": new_batch.batch_id
+    }
