@@ -162,7 +162,7 @@ def get_current_stock(db: Session = Depends(get_db)):
     results = db.query(
         Medicine.name, Medicine.category,
         InventoryBatch.batch_id, InventoryBatch.batch_number,
-        InventoryBatch.quantity, InventoryBatch.expiry_date,
+        InventoryBatch.quantity, InventoryBatch.manufacture_date,InventoryBatch.expiry_date,
         Medicine.reorder_level
     ).join(
         Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
@@ -189,6 +189,7 @@ def get_current_stock(db: Session = Depends(get_db)):
             "batch_number": r.batch_number,
             "stock": r.quantity,
             "reorder_level": r.reorder_level,
+            "manufacture_date": r.manufacture_date.isoformat(),
             "expiry_date": r.expiry_date.isoformat(),
             "status": status
         })

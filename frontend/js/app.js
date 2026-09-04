@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (currentPage.includes("stock.html")) {
         await loadStockPage();
+    } else if (currentPage.includes("analytics.html")) {
+        await loadAnalyticsPage();
     } else {
         await loadDashboard();
     }
@@ -67,7 +69,6 @@ async function loadCurrentStockTable() {
 // ======================================================
 
 let allStock = [];
-
 async function loadStockPage() {
     const tableBody = document.getElementById("medicineTableBody");
     if (!tableBody) return;
@@ -79,39 +80,27 @@ async function loadStockPage() {
 
         updateStockPageStats(allStock);
         populateCategoryFilter(allStock);
-        renderStockTable(allStock, tableBody);
+        stockCurrentPage = 1;
+        renderStockPage(allStock);
 
     } catch (error) {
         console.error("Error loading stock page:", error);
-        tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Unable to load stock data.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Unable to load stock data.</td></tr>`;
     }
 
-    const searchInput = document.getElementById("searchInput");
-    if (searchInput) searchInput.addEventListener("input", applyStockFilters);
-
-    const categoryFilter = document.getElementById("categoryFilter");
-    if (categoryFilter) categoryFilter.addEventListener("change", applyStockFilters);
+    ["searchInput", "categoryFilter", "stockSortSelect", "expiryFrom", "expiryTo"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(el.tagName === "INPUT" ? "input" : "change", applyStockFilters);
+    });
 }
+
 
 function updateStockPageStats(data) {
     const uniqueMedicines = new Set(data.map(item => item.name)).size;
     const totalUnits = data.reduce((sum, item) => sum + item.stock, 0);
 
-    // Aggregate stock per medicine (across all its batches) before judging low/out of stock
-    const totals = {};
-    data.forEach(item => {
-        if (!totals[item.name]) {
-            totals[item.name] = { stock: 0, reorder_level: item.reorder_level };
-        }
-        totals[item.name].stock += item.stock;
-    });
-
-    let lowStockCount = 0;
-    let outOfStockCount = 0;
-    Object.values(totals).forEach(med => {
-        if (med.stock === 0) outOfStockCount++;
-        else if (med.stock < med.reorder_level) lowStockCount++;
-    });
+    const lowStockCount = data.filter(item => item.status === "Low Stock").length;
+    const outOfStockCount = data.filter(item => item.status === "Out of Stock").length;
 
     setText("totalMedicines", uniqueMedicines);
     setText("totalUnits", totalUnits.toLocaleString());
@@ -133,6 +122,9 @@ function populateCategoryFilter(data) {
 function applyStockFilters() {
     const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
     const selectedCategory = document.getElementById("categoryFilter").value;
+    const sortValue = document.getElementById("stockSortSelect").value;
+    const dateFrom = document.getElementById("expiryFrom").value;
+    const dateTo = document.getElementById("expiryTo").value;
 
     let filtered = allStock.filter(item =>
         item.name.toLowerCase().includes(searchText) ||
@@ -140,11 +132,53 @@ function applyStockFilters() {
         item.batch_number.toLowerCase().includes(searchText)
     );
 
-    if (selectedCategory !== "all") {
-        filtered = filtered.filter(item => item.category === selectedCategory);
-    }
+    if (selectedCategory !== "all") filtered = filtered.filter(item => item.category === selectedCategory);
+    if (dateFrom) filtered = filtered.filter(item => item.expiry_date >= dateFrom);
+    if (dateTo) filtered = filtered.filter(item => item.expiry_date <= dateTo);
 
-    renderStockTable(filtered, document.getElementById("medicineTableBody"));
+    filtered = sortStockData(filtered, sortValue);
+    stockCurrentPage = 1;
+    renderStockPage(filtered);
+}
+
+function sortStockData(data, sortValue) {
+    const sorted = [...data];
+    switch (sortValue) {
+        case "expiry_asc": sorted.sort((a, b) => a.expiry_date.localeCompare(b.expiry_date)); break;
+        case "expiry_desc": sorted.sort((a, b) => b.expiry_date.localeCompare(a.expiry_date)); break;
+        case "stock_desc": sorted.sort((a, b) => b.stock - a.stock); break;
+        case "stock_asc": sorted.sort((a, b) => a.stock - b.stock); break;
+        case "mfg_desc": sorted.sort((a, b) => b.manufacture_date.localeCompare(a.manufacture_date)); break;
+        case "mfg_asc": sorted.sort((a, b) => a.manufacture_date.localeCompare(b.manufacture_date)); break;
+    }
+    return sorted;
+}
+
+let stockCurrentPage = 1;
+const STOCK_PAGE_SIZE = 10;
+let currentFilteredStock = [];
+
+function renderStockPage(filteredData) {
+    currentFilteredStock = filteredData;
+    const start = (stockCurrentPage - 1) * STOCK_PAGE_SIZE;
+    renderStockTable(filteredData.slice(start, start + STOCK_PAGE_SIZE), document.getElementById("medicineTableBody"));
+    renderStockPagination(filteredData.length);
+}
+
+function renderStockPagination(totalItems) {
+    const container = document.getElementById("stockPagination");
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil(totalItems / STOCK_PAGE_SIZE));
+    container.innerHTML = `
+        <button class="page-btn" onclick="goToStockPage(${stockCurrentPage - 1})" ${stockCurrentPage === 1 ? "disabled" : ""}>← Prev</button>
+        <span class="page-indicator">Page ${stockCurrentPage} of ${totalPages}</span>
+        <button class="page-btn" onclick="goToStockPage(${stockCurrentPage + 1})" ${stockCurrentPage === totalPages ? "disabled" : ""}>Next →</button>
+    `;
+}
+
+function goToStockPage(page) {
+    stockCurrentPage = page;
+    renderStockPage(currentFilteredStock);
 }
 
 function renderStockTable(data, tableBody) {
@@ -422,6 +456,137 @@ function escapeHTML(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+// ======================================================
+// SALES ANALYTICS PAGE (analytics.html)
+// ======================================================
+
+let allTransactions = [];
+
+async function loadAnalyticsPage() {
+    const tableBody = document.getElementById("transactionsBody");
+    if (!tableBody) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/transactions`);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        allTransactions = await response.json();
+
+        updateAnalyticsStats(allTransactions);
+        txnCurrentPage = 1;
+        renderTxnPage(allTransactions);
+
+    } catch (error) {
+        console.error("Error loading transactions:", error);
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Unable to load transactions.</td></tr>`;
+    }
+
+    ["txnSearchInput", "txnTypeFilter", "txnSortSelect", "txnDateFrom", "txnDateTo"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(el.tagName === "INPUT" ? "input" : "change", applyTxnFilters);
+    });
+}
+
+function updateAnalyticsStats(data) {
+    const sales = data.filter(t => t.type === "Sale");
+    const customerReturns = data.filter(t => t.type === "Customer Return");
+    const supplierReturns = data.filter(t => t.type === "Supplier Return");
+
+    const totalRevenue = sales.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    setText("totalRevenue", `₹${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    setText("totalSales", sales.length);
+    setText("totalCustomerReturns", customerReturns.reduce((sum, t) => sum + t.quantity, 0));
+    setText("totalSupplierReturns", supplierReturns.reduce((sum, t) => sum + t.quantity, 0));
+}
+
+function applyTxnFilters() {
+    const searchText = document.getElementById("txnSearchInput").value.trim().toLowerCase();
+    const selectedType = document.getElementById("txnTypeFilter").value;
+    const sortValue = document.getElementById("txnSortSelect").value;
+    const dateFrom = document.getElementById("txnDateFrom").value;
+    const dateTo = document.getElementById("txnDateTo").value;
+
+    let filtered = allTransactions.filter(t => t.medicine_name.toLowerCase().includes(searchText));
+
+    if (selectedType !== "all") filtered = filtered.filter(t => t.type === selectedType);
+    if (dateFrom) filtered = filtered.filter(t => t.date >= dateFrom);
+    if (dateTo) filtered = filtered.filter(t => t.date <= dateTo);
+
+    filtered = sortTxnData(filtered, sortValue);
+    txnCurrentPage = 1;
+    renderTxnPage(filtered);
+}
+
+function sortTxnData(data, sortValue) {
+    const sorted = [...data];
+    switch (sortValue) {
+        case "date_desc": sorted.sort((a, b) => b.date.localeCompare(a.date)); break;
+        case "date_asc": sorted.sort((a, b) => a.date.localeCompare(b.date)); break;
+        case "amount_desc": sorted.sort((a, b) => (b.amount || 0) - (a.amount || 0)); break;
+        case "amount_asc": sorted.sort((a, b) => (a.amount || 0) - (b.amount || 0)); break;
+    }
+    return sorted;
+}
+
+let txnCurrentPage = 1;
+const TXN_PAGE_SIZE = 15;
+let currentFilteredTxns = [];
+
+function renderTxnPage(filteredData) {
+    currentFilteredTxns = filteredData;
+    const start = (txnCurrentPage - 1) * TXN_PAGE_SIZE;
+    renderTransactions(filteredData.slice(start, start + TXN_PAGE_SIZE), document.getElementById("transactionsBody"));
+    renderTxnPagination(filteredData.length);
+}
+
+function renderTxnPagination(totalItems) {
+    const container = document.getElementById("txnPagination");
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil(totalItems / TXN_PAGE_SIZE));
+    container.innerHTML = `
+        <button class="page-btn" onclick="goToTxnPage(${txnCurrentPage - 1})" ${txnCurrentPage === 1 ? "disabled" : ""}>← Prev</button>
+        <span class="page-indicator">Page ${txnCurrentPage} of ${totalPages}</span>
+        <button class="page-btn" onclick="goToTxnPage(${txnCurrentPage + 1})" ${txnCurrentPage === totalPages ? "disabled" : ""}>Next →</button>
+    `;
+}
+
+function goToTxnPage(page) {
+    txnCurrentPage = page;
+    renderTxnPage(currentFilteredTxns);
+}
+
+function renderTransactions(data, tableBody) {
+    tableBody.innerHTML = "";
+
+    if (data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No transactions found.</td></tr>`;
+        return;
+    }
+
+    data.forEach(t => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${txnTypeBadge(t.type)}</td>
+            <td><strong>${escapeHTML(t.medicine_name)}</strong></td>
+            <td>${t.quantity}</td>
+            <td>${t.amount !== null ? "₹" + t.amount.toFixed(2) : "—"}</td>
+            <td>${t.reason ? escapeHTML(t.reason) : "—"}</td>
+            <td>${formatDate(t.date)}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function txnTypeBadge(type) {
+    const map = {
+        "Sale": "good-status",
+        "Customer Return": "low-status",
+        "Supplier Return": "expiry-status"
+    };
+    const cls = map[type] || "good-status";
+    return `<span class="status ${cls}">${escapeHTML(type)}</span>`;
 }
 
 console.log("app.js loaded — connected to FastAPI backend");

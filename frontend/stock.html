@@ -59,7 +59,7 @@
                 Medicines
             </a>
 
-            <a href="#" class="nav-item">
+            <a href="analytics.html" class="nav-item">
                 <span>↗</span>
                 Sales Analytics
             </a>
@@ -112,9 +112,20 @@
 
                 <div class="date">
                     📅
-                    <span>07 Aug 2026</span>
+                    <span id="current-date">07 Aug 2026</span>
                 </div>
+<script>
+    // Get the current date and force the timezone formatting to Asia/Kolkata (IST)
+    const formattedDate = new Date().toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+    });
 
+    // Inject the IST date into your HTML
+    document.getElementById('current-date').textContent = formattedDate;
+</script>
             </div>
 
         </header>
@@ -189,43 +200,34 @@
         <!-- SEARCH + ACTIONS -->
 
         <section class="panel">
-
-            <div class="stock-toolbar">
-
-                <div class="search-box">
-
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="Search medicine..."
-                    >
-
-                </div>
-
-
-                <div class="filter-box">
-
-                    <select id="categoryFilter">
-
-                        <option value="all">
-                            All Categories
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <button
-                    class="add-button"
-                    onclick="openAddMedicine()"
-                >
-                    + Add Medicine
-                </button>
-
-            </div>
-
-        </section>
+    <div class="stock-toolbar">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search medicine...">
+        </div>
+        <div class="filter-box">
+            <select id="categoryFilter">
+                <option value="all">All Categories</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <select id="stockSortSelect">
+                <option value="expiry_asc">Expiry (Soonest)</option>
+                <option value="expiry_desc">Expiry (Latest)</option>
+                <option value="stock_desc">Stock (High to Low)</option>
+                <option value="stock_asc">Stock (Low to High)</option>
+                <option value="mfg_desc">Batch (Newest)</option>
+                <option value="mfg_asc">Batch (Oldest)</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <input type="date" id="expiryFrom" title="Expiry from">
+        </div>
+        <div class="filter-box">
+            <input type="date" id="expiryTo" title="Expiry to">
+        </div>
+        <button class="add-button" onclick="openAddMedicine()">+ Add Medicine</button>
+    </div>
+</section>
 
 
         <!-- STOCK TABLE -->
@@ -282,7 +284,12 @@
                     </tbody>
 
                 </table>
-
+<div class="table-container">
+    <table>
+        ...
+    </table>
+</div>
+<div class="pagination-controls" id="stockPagination"></div>
             </div>
 
         </section>
