@@ -12,13 +12,17 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     const currentPage = window.location.pathname;
 
-    if (currentPage.includes("stock.html")) {
-        await loadStockPage();
-    } else if (currentPage.includes("analytics.html")) {
-        await loadAnalyticsPage();
-    } else {
-        await loadDashboard();
-    }
+    if (currentPage.includes("stock-requirement.html")) {
+    await loadRequirementPage();
+} else if (currentPage.includes("expiring-stock.html")) {
+    await loadExpiringPage();
+} else if (currentPage.includes("stock.html")) {
+    await loadStockPage();
+} else if (currentPage.includes("analytics.html")) {
+    await loadAnalyticsPage();
+} else {
+    await loadDashboard();
+}
 });
 
 // ======================================================
@@ -328,16 +332,23 @@ function statusBadge(status) {
 // SHARED: render a list of stock rows into a table body
 // ======================================================
 
-function renderStockRows(data, tableBody) {
+function renderStockTable(data, tableBody) {
     tableBody.innerHTML = "";
 
     if (data.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No medicines found.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Unable to load stock data.</td></tr>`;
         return;
     }
 
     data.forEach(item => {
         const row = document.createElement("tr");
+        row.dataset.batchId = item.batch_id;
+
+        const isExpired = item.status === "Expired";
+        const sellButton = isExpired
+            ? `<button class="row-action-btn sell" disabled title="Cannot sell expired stock">Sell</button>`
+            : `<button class="row-action-btn sell" onclick="openActionModal(${item.batch_id}, 'sell', '${escapeHTML(item.name)}', ${item.stock})">Sell</button>`;
+
         row.innerHTML = `
             <td>
                 <div class="medicine-name">
@@ -351,8 +362,14 @@ function renderStockRows(data, tableBody) {
             <td>${escapeHTML(item.category)}</td>
             <td>${escapeHTML(item.batch_number)}</td>
             <td><strong>${item.stock}</strong></td>
+            <td>${item.reorder_level}</td>
             <td>${formatDate(item.expiry_date)}</td>
             <td>${statusBadge(item.status)}</td>
+            <td>
+                ${sellButton}
+                <button class="row-action-btn return" onclick="openActionModal(${item.batch_id}, 'customer_return', '${escapeHTML(item.name)}', ${item.stock})">Return</button>
+                <button class="row-action-btn exchange" onclick="openActionModal(${item.batch_id}, 'supplier_return', '${escapeHTML(item.name)}', ${item.stock})">Exchange</button>
+            </td>
         `;
         tableBody.appendChild(row);
     });
@@ -430,6 +447,157 @@ async function submitAddMedicine() {
         console.error("Add medicine error:", error);
         messageEl.textContent = "Unable to reach the server.";
     }
+}
+
+// ======================================================
+// STOCK REQUIREMENT PAGE (stock-requirement.html)
+// ======================================================
+
+let allRequirements = [];
+let reqCurrentPage = 1;
+const REQ_PAGE_SIZE = 10;
+let currentFilteredRequirements = [];
+
+async function loadRequirementPage() {
+    const tableBody = document.getElementById("requirementTableBody");
+    if (!tableBody) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/stock/requirement`);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        allRequirements = await response.json();
+
+        updateRequirementStats(allRequirements);
+        populateRequirementCategoryFilter(allRequirements);
+        reqCurrentPage = 1;
+        renderRequirementPage(allRequirements);
+
+    } catch (error) {
+        console.error("Error loading stock requirement:", error);
+        tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Unable to load stock requirement data.</td></tr>`;
+    }
+
+    ["reqSearchInput", "reqCategoryFilter", "reqSortSelect"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(el.tagName === "INPUT" ? "input" : "change", applyRequirementFilters);
+    });
+}
+
+function updateRequirementStats(data) {
+    const count = data.length;
+    const totalUnits = data.reduce((sum, item) => sum + item.suggested_order_qty, 0);
+    const totalCost = data.reduce((sum, item) => sum + item.estimated_cost, 0);
+    const urgentCount = data.filter(item => item.days_of_stock_left !== null && item.days_of_stock_left < 14).length;
+
+    setText("reqCount", count);
+    setText("reqTotalUnits", totalUnits.toLocaleString());
+    setText("reqTotalCost", `₹${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+    setText("reqUrgentCount", urgentCount);
+}
+
+function populateRequirementCategoryFilter(data) {
+    const select = document.getElementById("reqCategoryFilter");
+    if (!select) return;
+
+    const categories = [...new Set(data.map(item => item.category))].sort();
+    select.innerHTML = `<option value="all">All Categories</option>`;
+    categories.forEach(cat => {
+        select.innerHTML += `<option value="${escapeHTML(cat)}">${escapeHTML(cat)}</option>`;
+    });
+}
+
+function applyRequirementFilters() {
+    const searchText = document.getElementById("reqSearchInput").value.trim().toLowerCase();
+    const selectedCategory = document.getElementById("reqCategoryFilter").value;
+    const sortValue = document.getElementById("reqSortSelect").value;
+
+    let filtered = allRequirements.filter(item =>
+        item.name.toLowerCase().includes(searchText) ||
+        item.category.toLowerCase().includes(searchText)
+    );
+
+    if (selectedCategory !== "all") {
+        filtered = filtered.filter(item => item.category === selectedCategory);
+    }
+
+    filtered = sortRequirementData(filtered, sortValue);
+    reqCurrentPage = 1;
+    renderRequirementPage(filtered);
+}
+
+function sortRequirementData(data, sortValue) {
+    const sorted = [...data];
+    switch (sortValue) {
+        case "urgency":
+            sorted.sort((a, b) => {
+                if (a.days_of_stock_left === null) return 1;
+                if (b.days_of_stock_left === null) return -1;
+                return a.days_of_stock_left - b.days_of_stock_left;
+            });
+            break;
+        case "cost_desc": sorted.sort((a, b) => b.estimated_cost - a.estimated_cost); break;
+        case "qty_desc": sorted.sort((a, b) => b.suggested_order_qty - a.suggested_order_qty); break;
+        case "name": sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
+    }
+    return sorted;
+}
+
+function renderRequirementPage(filteredData) {
+    currentFilteredRequirements = filteredData;
+    const start = (reqCurrentPage - 1) * REQ_PAGE_SIZE;
+    renderRequirementTable(filteredData.slice(start, start + REQ_PAGE_SIZE), document.getElementById("requirementTableBody"));
+    renderRequirementPagination(filteredData.length);
+}
+
+function renderRequirementPagination(totalItems) {
+    const container = document.getElementById("reqPagination");
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil(totalItems / REQ_PAGE_SIZE));
+    container.innerHTML = `
+        <button class="page-btn" onclick="goToRequirementPage(${reqCurrentPage - 1})" ${reqCurrentPage === 1 ? "disabled" : ""}>← Prev</button>
+        <span class="page-indicator">Page ${reqCurrentPage} of ${totalPages}</span>
+        <button class="page-btn" onclick="goToRequirementPage(${reqCurrentPage + 1})" ${reqCurrentPage === totalPages ? "disabled" : ""}>Next →</button>
+    `;
+}
+
+function goToRequirementPage(page) {
+    reqCurrentPage = page;
+    renderRequirementPage(currentFilteredRequirements);
+}
+
+function renderRequirementTable(data, tableBody) {
+    tableBody.innerHTML = "";
+
+    if (data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Nothing needs reordering right now.</td></tr>`;
+        return;
+    }
+
+    data.forEach(item => {
+    const row = document.createElement("tr");
+    const urgent = item.days_of_stock_left !== null && item.days_of_stock_left < 14;
+    const daysLabel = item.days_of_stock_left === null ? "—" : `${item.days_of_stock_left}d`;
+    const stockCell = item.fully_expired
+        ? `<span class="status expiry-status">All Expired</span>`
+        : item.current_stock;
+
+    row.innerHTML = `
+        <td>
+            <div class="medicine-name">
+                <div class="medicine-icon">${escapeHTML(item.name.charAt(0))}</div>
+                <div><strong>${escapeHTML(item.name)}</strong></div>
+            </div>
+        </td>
+        <td>${escapeHTML(item.category)}</td>
+        <td>${stockCell}</td>
+        <td>${item.reorder_level}</td>
+        <td>${item.avg_daily_sales}</td>
+        <td><strong>${item.suggested_order_qty}</strong></td>
+        <td>₹${item.estimated_cost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+        <td>${urgent ? `<span class="status low-status">${daysLabel}</span>` : daysLabel}</td>
+    `;
+    tableBody.appendChild(row);
+});
 }
 
 // ======================================================
@@ -587,6 +755,96 @@ function txnTypeBadge(type) {
     };
     const cls = map[type] || "good-status";
     return `<span class="status ${cls}">${escapeHTML(type)}</span>`;
+}
+
+// ======================================================
+// EXPIRING STOCK PAGE (expiring-stock.html)
+// ======================================================
+
+let allExpiringStock = [];
+let expCurrentPage = 1;
+const EXP_PAGE_SIZE = 10;
+let currentFilteredExpiring = [];
+
+async function loadExpiringPage() {
+    const tableBody = document.getElementById("expiringTableBody");
+    if (!tableBody) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/stock/current`);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        const fullData = await response.json();
+
+        allExpiringStock = fullData.filter(item =>
+            item.status === "Expiring Soon" || item.status === "Expired"
+        );
+
+        updateExpiringStats(allExpiringStock);
+        expCurrentPage = 1;
+        renderExpiringPage(allExpiringStock);
+
+    } catch (error) {
+        console.error("Error loading expiring stock:", error);
+        tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Unable to load expiring stock.</td></tr>`;
+    }
+
+    ["expSearchInput", "expStatusFilter", "expSortSelect"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(el.tagName === "INPUT" ? "input" : "change", applyExpiringFilters);
+    });
+}
+
+function updateExpiringStats(data) {
+    const expiringSoon = data.filter(item => item.status === "Expiring Soon");
+    const expired = data.filter(item => item.status === "Expired");
+    const unitsAtRisk = data.reduce((sum, item) => sum + item.stock, 0);
+
+    setText("expiringSoonStat", expiringSoon.length);
+    setText("expiredStat", expired.length);
+    setText("unitsAtRiskStat", unitsAtRisk.toLocaleString());
+}
+
+function applyExpiringFilters() {
+    const searchText = document.getElementById("expSearchInput").value.trim().toLowerCase();
+    const statusFilter = document.getElementById("expStatusFilter").value;
+    const sortValue = document.getElementById("expSortSelect").value;
+
+    let filtered = allExpiringStock.filter(item =>
+        item.name.toLowerCase().includes(searchText) ||
+        item.category.toLowerCase().includes(searchText) ||
+        item.batch_number.toLowerCase().includes(searchText)
+    );
+
+    if (statusFilter !== "all") {
+        filtered = filtered.filter(item => item.status === statusFilter);
+    }
+
+    filtered = sortStockData(filtered, sortValue); // reuses the sort helper from stock.html's logic
+    expCurrentPage = 1;
+    renderExpiringPage(filtered);
+}
+
+function renderExpiringPage(filteredData) {
+    currentFilteredExpiring = filteredData;
+    const start = (expCurrentPage - 1) * EXP_PAGE_SIZE;
+    renderStockTable(filteredData.slice(start, start + EXP_PAGE_SIZE), document.getElementById("expiringTableBody"));
+    renderExpiringPagination(filteredData.length);
+}
+
+function renderExpiringPagination(totalItems) {
+    const container = document.getElementById("expiringPagination");
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil(totalItems / EXP_PAGE_SIZE));
+    container.innerHTML = `
+        <button class="page-btn" onclick="goToExpiringPage(${expCurrentPage - 1})" ${expCurrentPage === 1 ? "disabled" : ""}>← Prev</button>
+        <span class="page-indicator">Page ${expCurrentPage} of ${totalPages}</span>
+        <button class="page-btn" onclick="goToExpiringPage(${expCurrentPage + 1})" ${expCurrentPage === totalPages ? "disabled" : ""}>Next →</button>
+    `;
+}
+
+function goToExpiringPage(page) {
+    expCurrentPage = page;
+    renderExpiringPage(currentFilteredExpiring);
 }
 
 console.log("app.js loaded — connected to FastAPI backend");

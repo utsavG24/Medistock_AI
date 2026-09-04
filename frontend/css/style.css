@@ -1215,3 +1215,13 @@ tr:hover .medicine-icon {
     font-size: 12px;
     color: #9ca3af;
 }
+
+.row-action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.row-action-btn:disabled:hover {
+    transform: none;
+}
