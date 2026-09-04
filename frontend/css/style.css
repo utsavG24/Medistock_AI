@@ -1182,3 +1182,36 @@ tr:hover .medicine-icon {
 .action-modal-btn.confirm:hover {
     background: #087f5b;
 }
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 0 4px;
+}
+
+.page-btn {
+    border: 1px solid #e5e7eb;
+    background: white;
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: #f0fdf8;
+    color: #0f9f6e;
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-indicator {
+    font-size: 12px;
+    color: #9ca3af;
+}

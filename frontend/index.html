@@ -29,12 +29,12 @@
 
             <p class="menu-title">MAIN MENU</p>
 
-            <a href="#" class="nav-item active">
+            <a href="index.html" class="nav-item active">
                 <span>▣</span>
                 Dashboard
             </a>
 
-            <a href="#" class="nav-item">
+            <a href="stock.html" class="nav-item">
                 <span>▤</span>
                 Current Stock
             </a>
@@ -56,7 +56,7 @@
                 Medicines
             </a>
 
-            <a href="#" class="nav-item">
+            <a href="analytics.html" class="nav-item">
                 <span>↗</span>
                 Sales Analytics
             </a>
@@ -102,9 +102,20 @@
 
                 <div class="date">
                     📅
-                    <span>18 Aug 2026</span>
+                    <span id="current-date">18 Aug 2026</span>
                 </div>
+<script>
+    // Get the current date and force the timezone formatting to Asia/Kolkata (IST)
+    const formattedDate = new Date().toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+    });
 
+    // Inject the IST date into your HTML
+    document.getElementById('current-date').textContent = formattedDate;
+</script>
             </div>
 
         </header>
