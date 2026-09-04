@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Requirement - MEDISTOCK AI</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="logo">
+    <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
+    <div>
+        <h2>MEDISTOCK</h2>
+        <span>Stock. Track. Forecast.</span>
+    </div>
+</div>
+
+        <nav class="navigation">
+
+            <p class="menu-title">MAIN MENU</p>
+
+            <a href="index.html" class="nav-item">
+                <span>▣</span>
+                Dashboard
+            </a>
+
+            <a href="stock.html" class="nav-item">
+                <span>▤</span>
+                Current Stock
+            </a>
+
+            <a href="expiring-stock.html" class="nav-item">
+                <span>⚠</span>
+                Expiring Stock
+            </a>
+
+            <a href="stock-requirement.html" class="nav-item active">
+                <span>◈</span>
+                Stock Requirement
+            </a>
+
+            <p class="menu-title">MANAGEMENT</p>
+
+            <a href="#" class="nav-item">
+                <span>▥</span>
+                Medicines
+            </a>
+
+            <a href="analytics.html" class="nav-item">
+                <span>↗</span>
+                Sales Analytics
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>⚙</span>
+                Settings
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="admin-avatar">A</div>
+            <div class="admin-info">
+                <strong>Admin</strong>
+                <span>Pharmacy Manager</span>
+            </div>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <h1>Stock Requirement</h1>
+                <p>Medicines that need reordering, ranked by urgency.</p>
+            </div>
+        </header>
+
+
+        <!-- SUMMARY CARDS -->
+        <section class="stats-grid">
+
+            <div class="stat-card">
+                <div class="stat-icon medicines-icon">📋</div>
+                <div>
+                    <p>Medicines to Reorder</p>
+                    <h2 id="reqCount">0</h2>
+                    <small>Below reorder level</small>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon stock-icon">📦</div>
+                <div>
+                    <p>Total Suggested Units</p>
+                    <h2 id="reqTotalUnits">0</h2>
+                    <small>Across all items</small>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon stock-icon">₹</div>
+                <div>
+                    <p>Estimated Cost</p>
+                    <h2 id="reqTotalCost">0</h2>
+                    <small>To fully restock</small>
+                </div>
+            </div>
+
+            <div class="stat-card danger-card">
+                <div class="stat-icon danger-icon">⏳</div>
+                <div>
+                    <p>Urgent Items</p>
+                    <h2 id="reqUrgentCount">0</h2>
+                    <small>Under 14 days of stock left</small>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- TOOLBAR -->
+        <section class="panel">
+            <div class="stock-toolbar">
+
+                <div class="search-box">
+                    <input type="text" id="reqSearchInput" placeholder="Search medicine...">
+                </div>
+
+                <div class="filter-box">
+                    <select id="reqCategoryFilter">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+
+                <div class="filter-box">
+                    <select id="reqSortSelect">
+                        <option value="urgency">Sort: Most Urgent First</option>
+                        <option value="cost_desc">Sort: Highest Cost First</option>
+                        <option value="qty_desc">Sort: Highest Quantity First</option>
+                        <option value="name">Sort: Name (A-Z)</option>
+                    </select>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- TABLE -->
+        <section class="panel stock-panel">
+
+            <div class="panel-header">
+    <div>
+        <h3>Reorder List</h3>
+        <p>Suggested quantities include a demand-based safety buffer. Expired stock is excluded from current-stock counts — medicines whose entire stock has expired are shown as "All Expired" and still appear here for urgent reordering.</p>
+    </div>
+</div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Medicine</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Reorder Level</th>
+                            <th>Avg Daily Sales</th>
+                            <th>Suggested Qty</th>
+                            <th>Est. Cost</th>
+                            <th>Days Left</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requirementTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-controls" id="reqPagination"></div>
+
+        </section>
+
+    </main>
+
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

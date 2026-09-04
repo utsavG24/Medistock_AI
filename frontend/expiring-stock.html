@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expiring Stock - MEDISTOCK</title>
+    <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
+            <div>
+                <h2>MEDISTOCK</h2>
+                <span>Stock. Track. Forecast.</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+            <p class="menu-title">MAIN MENU</p>
+            <a href="index.html" class="nav-item">
+                <span>▣</span> Dashboard
+            </a>
+            <a href="stock.html" class="nav-item">
+                <span>▤</span> Current Stock
+            </a>
+            <a href="expiring-stock.html" class="nav-item active">
+                <span>⚠</span> Expiring Stock
+            </a>
+            <a href="stock-requirement.html" class="nav-item">
+                <span>◈</span> Stock Requirement
+            </a>
+
+            <p class="menu-title">MANAGEMENT</p>
+            <a href="#" class="nav-item">
+                <span>▥</span> Medicines
+            </a>
+            <a href="analytics.html" class="nav-item">
+                <span>↗</span> Sales Analytics
+            </a>
+            <a href="#" class="nav-item">
+                <span>⚙</span> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="admin-avatar">A</div>
+            <div class="admin-info">
+                <strong>Admin</strong>
+                <span>Pharmacy Manager</span>
+            </div>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <h1>Expiring Stock</h1>
+                <p>Batches expiring within 60 days, or already expired.</p>
+            </div>
+            <div class="topbar-right">
+                <button class="notification">
+                    🔔
+                    <span class="notification-dot"></span>
+                </button>
+            </div>
+        </header>
+
+        <section class="stats-grid">
+            <div class="stat-card warning-card">
+                <div class="stat-icon warning-icon">⚠️</div>
+                <div>
+                    <p>Expiring Soon</p>
+                    <h2 id="expiringSoonStat">0</h2>
+                    <small>Within 60 days</small>
+                </div>
+            </div>
+
+            <div class="stat-card danger-card">
+                <div class="stat-icon danger-icon">⏳</div>
+                <div>
+                    <p>Already Expired</p>
+                    <h2 id="expiredStat">0</h2>
+                    <small>Needs immediate action</small>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon stock-icon">📦</div>
+                <div>
+                    <p>Units at Risk</p>
+                    <h2 id="unitsAtRiskStat">0</h2>
+                    <small>Total units expiring or expired</small>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="stock-toolbar">
+                <div class="search-box">
+                    <input type="text" id="expSearchInput" placeholder="Search medicine...">
+                </div>
+                <div class="filter-box">
+                    <select id="expStatusFilter">
+                        <option value="all">All (Expiring + Expired)</option>
+                        <option value="Expiring Soon">Expiring Soon Only</option>
+                        <option value="Expired">Expired Only</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="expSortSelect">
+                        <option value="expiry_asc">Expiry (Soonest)</option>
+                        <option value="expiry_desc">Expiry (Latest)</option>
+                        <option value="stock_desc">Stock (High to Low)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel stock-panel">
+            <div class="panel-header">
+                <div>
+                    <h3>Batches at Risk</h3>
+                    <p>Sorted soonest-to-expire first by default.</p>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Medicine</th>
+                            <th>Category</th>
+                            <th>Batch</th>
+                            <th>Stock</th>
+                            <th>Min Stock</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expiringTableBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination-controls" id="expiringPagination"></div>
+        </section>
+
+    </main>
+
+    <!-- Sell / Return / Exchange Modal (shared with stock.html) -->
+    <div class="action-modal-overlay" id="actionModalOverlay">
+        <div class="action-modal">
+            <h3 id="actionModalTitle">Sell Stock</h3>
+            <p id="actionModalMedicine" style="font-weight:600; margin:4px 0;"></p>
+            <p id="actionModalStock" style="color:#6b7280; font-size:13px; margin-bottom:16px;"></p>
+
+            <label for="actionQuantity">Quantity</label>
+            <input type="number" id="actionQuantity" min="1">
+
+            <div id="actionReasonField">
+                <label for="actionReason">Reason (optional)</label>
+                <input type="text" id="actionReason" placeholder="e.g. damaged packaging">
+            </div>
+
+            <div id="actionReceivedField" style="display:none;">
+                <label for="actionReceived">Replacement units received</label>
+                <input type="number" id="actionReceived" min="0" placeholder="0 if none">
+            </div>
+
+            <div id="actionMessage" style="font-size:13px; margin:10px 0; min-height:16px;"></div>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="action-modal-btn cancel" onclick="closeActionModal()">Cancel</button>
+                <button class="action-modal-btn confirm" onclick="submitAction()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

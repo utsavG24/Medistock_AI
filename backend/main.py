@@ -234,12 +234,13 @@ def get_current_admin(request: Request):
     if "admin_id" not in request.session:
         raise HTTPException(status_code=401, detail="Not logged in")
     return {"full_name": request.session["full_name"]}
-
 @app.post("/sales")
 def sell_stock(data: SellRequest, db: Session = Depends(get_db)):
     batch = db.query(InventoryBatch).filter(InventoryBatch.batch_id == data.batch_id).first()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    if batch.expiry_date < date.today():
+        raise HTTPException(status_code=400, detail="Cannot sell an expired batch")
     if batch.quantity < data.quantity:
         raise HTTPException(status_code=400, detail=f"Only {batch.quantity} units available in this batch")
 
@@ -383,3 +384,63 @@ def add_medicine(data: AddMedicineRequest, db: Session = Depends(get_db)):
         "medicine_id": new_medicine.medicine_id,
         "batch_id": new_batch.batch_id
     }
+
+@app.get("/stock/requirement")
+def get_stock_requirement(db: Session = Depends(get_db)):
+    SAFETY_DAYS = 14
+    SALES_LOOKBACK_DAYS = 90
+
+    stock_by_medicine = db.query(
+        InventoryBatch.medicine_id,
+        func.sum(InventoryBatch.quantity).label("current_stock")
+    ).filter(
+        InventoryBatch.expiry_date >= date.today()
+    ).group_by(InventoryBatch.medicine_id).subquery()
+
+    cutoff = date.today() - timedelta(days=SALES_LOOKBACK_DAYS)
+    sales_by_medicine = db.query(
+        SaleHistory.medicine_id,
+        func.sum(SaleHistory.quantity_sold).label("total_sold")
+    ).filter(SaleHistory.sale_date >= cutoff).group_by(SaleHistory.medicine_id).subquery()
+
+    results = db.query(
+        Medicine.medicine_id, Medicine.name, Medicine.category, Medicine.reorder_level,
+        Medicine.unit_price,
+        stock_by_medicine.c.current_stock,
+        sales_by_medicine.c.total_sold
+    ).outerjoin(
+        stock_by_medicine, Medicine.medicine_id == stock_by_medicine.c.medicine_id
+    ).outerjoin(
+        sales_by_medicine, Medicine.medicine_id == sales_by_medicine.c.medicine_id
+    ).all()
+
+    output = []
+    for r in results:
+        current_stock = r.current_stock or 0
+
+        if current_stock >= r.reorder_level:
+            continue  # doesn't need reordering, skip it
+
+        avg_daily_sales = (r.total_sold or 0) / SALES_LOOKBACK_DAYS
+        safety_stock = avg_daily_sales * SAFETY_DAYS
+        target_level = r.reorder_level + safety_stock
+        suggested_order_qty = max(round(target_level - current_stock), 0)
+        days_of_stock_left = round(current_stock / avg_daily_sales, 1) if avg_daily_sales > 0 else None
+        estimated_cost = round(suggested_order_qty * float(r.unit_price), 2)
+
+        output.append({
+            "medicine_id": r.medicine_id,
+            "name": r.name,
+            "category": r.category,
+            "current_stock": current_stock,
+            "reorder_level": r.reorder_level,
+            "avg_daily_sales": round(avg_daily_sales, 2),
+            "suggested_order_qty": suggested_order_qty,
+            "unit_price": float(r.unit_price),
+            "estimated_cost": estimated_cost,
+            "days_of_stock_left": days_of_stock_left,
+            "fully_expired": current_stock == 0
+        })
+
+    output.sort(key=lambda x: (x["days_of_stock_left"] is None, x["days_of_stock_left"]))
+    return output
