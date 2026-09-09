@@ -122,6 +122,12 @@ async function requireLogin() {
         const data = await response.json();
         const adminNameEl = document.querySelector(".admin-info strong");
         if (adminNameEl) adminNameEl.textContent = data.full_name;
+        const adminAvatarEl = document.querySelector(".admin-avatar");
+        if (adminAvatarEl && data.full_name) {
+            adminAvatarEl.textContent = data.full_name.trim().charAt(0).toUpperCase();
+            adminAvatarEl.title = data.full_name;
+            adminAvatarEl.setAttribute("aria-label", `${data.full_name} profile`);
+        }
 
         return data;
 

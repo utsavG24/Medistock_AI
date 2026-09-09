@@ -1,0 +1,205 @@
+.settings-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 290px;
+    gap: 22px;
+    align-items: start;
+}
+
+.settings-main,
+.settings-side {
+    display: grid;
+    gap: 18px;
+}
+
+.settings-hero {
+    background: linear-gradient(120deg, #0c8060, #16a878);
+    color: white;
+    border-radius: 12px;
+    padding: 26px;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    box-shadow: 0 12px 26px rgba(15, 159, 110, 0.16);
+}
+
+.settings-hero-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    font-size: 25px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.eyebrow,
+.section-kicker {
+    color: #0f9f6e;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.settings-hero .eyebrow {
+    color: #c6f5e4;
+}
+
+.settings-hero h2 {
+    font-size: 22px;
+    margin: 6px 0;
+}
+
+.settings-hero p,
+.settings-card-heading p,
+.about-card p,
+.support-card p {
+    color: #87938f;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.settings-hero p {
+    color: #e0fff3;
+}
+
+.settings-card,
+.about-card,
+.support-card {
+    background: white;
+    border: 1px solid #e8ecee;
+    border-radius: 12px;
+    padding: 22px;
+}
+
+.settings-card-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    align-items: start;
+    margin-bottom: 18px;
+}
+
+.settings-card h3,
+.about-card h3,
+.support-card h3 {
+    color: #1f2937;
+    font-size: 16px;
+    margin: 6px 0 4px;
+}
+
+.theme-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.theme-option {
+    border: 1px solid #e3e8e7;
+    background: #fbfdfc;
+    border-radius: 9px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    cursor: pointer;
+    color: #1f2937;
+}
+
+.theme-option.selected {
+    border-color: #0f9f6e;
+    box-shadow: 0 0 0 2px rgba(15, 159, 110, 0.12);
+}
+
+.theme-option strong,
+.theme-option small,
+.setting-row strong,
+.setting-row small {
+    display: block;
+}
+
+.theme-option strong,
+.setting-row strong {
+    font-size: 12px;
+}
+
+.theme-option small,
+.setting-row small {
+    color: #9ca3af;
+    font-size: 10px;
+    margin-top: 3px;
+}
+
+.theme-check {
+    margin-left: auto;
+    color: #0f9f6e;
+    visibility: hidden;
+    font-weight: bold;
+}
+
+.theme-option.selected .theme-check { visibility: visible; }
+
+.theme-preview {
+    width: 43px;
+    height: 30px;
+    border: 1px solid #dce4e1;
+    border-radius: 5px;
+    display: block;
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-preview i,
+.theme-preview b {
+    position: absolute;
+    display: block;
+}
+
+.theme-preview i { width: 10px; height: 100%; left: 0; background: #d9f3e9; }
+.theme-preview b { width: 16px; height: 4px; left: 18px; top: 8px; border-radius: 2px; background: #72cdb0; box-shadow: 0 7px #dce4e1; }
+.light-preview { background: #fff; }
+.dark-preview { background: #1b2728; border-color: #344344; }
+.dark-preview i { background: #243d3a; }
+.dark-preview b { background: #63c7a4; box-shadow: 0 7px #536563; }
+
+.setting-row {
+    min-height: 58px;
+    border-top: 1px solid #eef1f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    cursor: pointer;
+}
+
+.toggle-input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle-ui { width: 38px; height: 21px; border-radius: 20px; background: #d6dedb; position: relative; flex: 0 0 auto; transition: background .2s ease; }
+.toggle-ui::after { content: ""; width: 15px; height: 15px; border-radius: 50%; background: white; position: absolute; top: 3px; left: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.18); transition: transform .2s ease; }
+.toggle-input:checked + .toggle-ui { background: #0f9f6e; }
+.toggle-input:checked + .toggle-ui::after { transform: translateX(17px); }
+
+.faq-search { display: flex; align-items: center; gap: 5px; border: 1px solid #e3e8e7; border-radius: 6px; padding: 7px 9px; }
+.faq-search input { border: 0; outline: 0; width: 125px; font: inherit; font-size: 11px; color: #1f2937; }
+.faq-search span { color: #0f9f6e; font-size: 16px; }
+.faq-list details { border-top: 1px solid #eef1f0; padding: 13px 0; }
+.faq-list summary { cursor: pointer; color: #33413e; font-size: 12px; font-weight: 600; list-style-position: outside; }
+.faq-list details p { color: #87938f; font-size: 11px; line-height: 1.6; padding: 9px 20px 0 0; }
+.faq-empty { color: #87938f; font-size: 12px; padding: 8px 0; }
+
+.about-card { background: #effbf6; border-color: #d8f2e7; }
+.about-mark { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px; background: #0f9f6e; color: white; font-size: 19px; font-weight: 700; margin-bottom: 18px; }
+.about-card h3 { font-size: 19px; line-height: 1.25; }
+.about-meta { display: flex; justify-content: space-between; border-top: 1px solid #d8f2e7; margin-top: 14px; padding-top: 11px; color: #729087; font-size: 10px; }
+.about-meta strong { color: #087f5b; }
+.support-card { background: #fffaf0; border-color: #f4e9c9; }
+.support-card .section-kicker { color: #a66b00; }
+.support-card h3 { margin-top: 10px; }
+.support-card .view-button { margin-top: 15px; }
+.copy-status { display: block; color: #0f9f6e; font-size: 10px; margin-top: 8px; min-height: 12px; }
+.reset-button { border: 1px solid #f0d2d2; color: #c64e4e; background: white; padding: 11px; border-radius: 7px; cursor: pointer; font-size: 11px; }
+.reset-button:hover { background: #fff5f5; }
+
+@media (max-width: 900px) { .settings-layout { grid-template-columns: 1fr; } .settings-side { grid-template-columns: repeat(2, 1fr); } .reset-button { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .settings-hero { align-items: flex-start; padding: 20px; } .settings-hero h2 { font-size: 18px; } .settings-card-heading { flex-direction: column; } .faq-search { width: 100%; } .faq-search input { width: 100%; } .settings-side { grid-template-columns: 1fr; } }

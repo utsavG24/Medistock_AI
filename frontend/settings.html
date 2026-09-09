@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - MEDISTOCK</title>
+    <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <script>
+        if (localStorage.getItem("medistock-theme") === "dark") {
+            document.documentElement.classList.add("dark-mode");
+        }
+    </script>
+</head>
+<body class="settings-page">
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
+            <div>
+                <h2>MEDISTOCK</h2>
+                <span>Stock. Track. Forecast.</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+            <p class="menu-title">MAIN MENU</p>
+            <a href="index.html" class="nav-item"><span>▣</span>Dashboard</a>
+            <a href="stock.html" class="nav-item"><span>▤</span>Current Stock</a>
+            <a href="expiring-stock.html" class="nav-item"><span>⚠</span>Expiring Stock</a>
+            <a href="stock-requirement.html" class="nav-item"><span>◈</span>Stock Requirement</a>
+
+            <p class="menu-title">MANAGEMENT</p>
+            <a href="medicine.html" class="nav-item"><span>▥</span>Medicines</a>
+            <a href="analytics.html" class="nav-item"><span>↗</span>Sales Analytics</a>
+            <a href="settings.html" class="nav-item active"><span>⚙</span>Settings</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="admin-avatar">A</div>
+            <div class="admin-info">
+                <strong>Admin</strong>
+                <span>Pharmacy Manager</span>
+            </div>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h1>Settings</h1>
+                <p>Shape your workspace and find answers when you need them.</p>
+            </div>
+            <div class="topbar-right">
+                <button class="notification" aria-label="Notifications">🔔<span class="notification-dot"></span></button>
+            </div>
+        </header>
+
+        <section class="settings-layout">
+            <div class="settings-main">
+                <section class="settings-hero">
+                    <div class="settings-hero-icon">⚙</div>
+                    <div>
+                        <span class="eyebrow">Workspace preferences</span>
+                        <h2>Make Medistock work your way.</h2>
+                        <p>Personalize how inventory updates, alerts, and help content appear for you.</p>
+                    </div>
+                </section>
+
+                <section class="settings-card" id="appearanceSettings">
+                    <div class="settings-card-heading">
+                        <div><span class="section-kicker">01</span><h3>Appearance</h3><p>Choose a comfortable view for long inventory sessions.</p></div>
+                    </div>
+                    <div class="theme-options">
+                        <button class="theme-option" data-theme-choice="light" type="button"><span class="theme-preview light-preview"><i></i><b></b></span><span><strong>Light</strong><small>Clean and bright</small></span><span class="theme-check">✓</span></button>
+                        <button class="theme-option" data-theme-choice="dark" type="button"><span class="theme-preview dark-preview"><i></i><b></b></span><span><strong>Dark</strong><small>Easy on the eyes</small></span><span class="theme-check">✓</span></button>
+                    </div>
+                    <label class="setting-row"><span><strong>Compact tables</strong><small>Fit more medicine records on screen.</small></span><input class="toggle-input" id="compactMode" type="checkbox"><span class="toggle-ui"></span></label>
+                </section>
+
+                <section class="settings-card">
+                    <div class="settings-card-heading"><div><span class="section-kicker">02</span><h3>Notifications</h3><p>Decide which inventory moments deserve your attention.</p></div></div>
+                    <label class="setting-row"><span><strong>Low-stock alerts</strong><small>Highlight items below their reorder level.</small></span><input class="toggle-input" id="lowStockAlerts" type="checkbox"><span class="toggle-ui"></span></label>
+                    <label class="setting-row"><span><strong>Expiry reminders</strong><small>Show batches expiring within 60 days.</small></span><input class="toggle-input" id="expiryAlerts" type="checkbox"><span class="toggle-ui"></span></label>
+                    <label class="setting-row"><span><strong>Weekly summary</strong><small>Keep a weekly snapshot of stock movement.</small></span><input class="toggle-input" id="weeklySummary" type="checkbox"><span class="toggle-ui"></span></label>
+                </section>
+
+                <section class="settings-card faq-card" id="helpSection">
+                    <div class="settings-card-heading"><div><span class="section-kicker">03</span><h3>Help & FAQ</h3><p>Quick answers for the workflows you use every day.</p></div><div class="faq-search"><span>⌕</span><input id="faqSearch" type="search" placeholder="Search help"></div></div>
+                    <div class="faq-list" id="faqList">
+                        <details open><summary>How do I add a new medicine?</summary><p>Open Current Stock and select Add Medicine. Enter the medicine details, batch number, quantity, reorder level, and dates, then submit the form.</p></details>
+                        <details><summary>What does “Expiring Soon” mean?</summary><p>A batch is marked Expiring Soon when its expiry date is within the next 60 days. Expired batches remain visible so they can be handled safely.</p></details>
+                        <details><summary>How is stock requirement calculated?</summary><p>Medistock compares current stock and average daily sales against the reorder level, then suggests the quantity needed to reach a practical target level.</p></details>
+                        <details><summary>Can I undo a sale or return?</summary><p>Use the matching return or exchange action from Current Stock. Every action is recorded in Sales Analytics for an auditable history.</p></details>
+                        <details><summary>Should I archive or delete a medicine?</summary><p>Archive medicines that are discontinued or no longer active. Archived medicines stay in analytics and can be restored. Permanent deletion is only for unused test or duplicate records and is blocked when stock, sales, or return history exists.</p></details>
+                        <details><summary>Where can I see my transaction history?</summary><p>Sales Analytics contains sales, customer returns, and supplier returns with filters for medicine, type, amount, and date.</p></details>
+                    </div>
+                    <p class="faq-empty" id="faqEmpty" hidden>No matching questions found.</p>
+                </section>
+            </div>
+
+            <aside class="settings-side">
+                <section class="about-card">
+                    <div class="about-mark">M</div>
+                    <span class="eyebrow">About Medistock</span>
+                    <h3>Inventory clarity for better pharmacy care.</h3>
+                    <p>Medistock keeps medicine batches, expiry dates, stock movement, and replenishment decisions in one calm workspace.</p>
+                    <div class="about-meta"><span>Version</span><strong>1.0.0</strong></div><div class="about-meta"><span>Build</span><strong>September 2026</strong></div>
+                </section>
+                <section class="support-card">
+                    <span class="section-kicker">Need a hand?</span>
+                    <h3>Talk to the support desk.</h3>
+                    <p>We’re here for setup questions, workflow ideas, and anything that feels unclear.</p>
+                    <button class="view-button" id="copySupport" type="button">Copy support email</button>
+                    <span class="copy-status" id="copyStatus" role="status"></span>
+                </section>
+                <button class="reset-button" id="resetSettings" type="button">Reset preferences</button>
+            </aside>
+        </section>
+    </main>
+
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

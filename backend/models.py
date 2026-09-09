@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, Date, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Numeric, Date, ForeignKey
 from database import Base
 
 class Medicine(Base):
@@ -10,6 +10,7 @@ class Medicine(Base):
     unit = Column(String)
     unit_price = Column(Numeric)
     reorder_level = Column(Integer)
+    is_active = Column(Boolean, nullable=False, default=True, server_default="true")
 
 class InventoryBatch(Base):
     __tablename__ = "inventory_batches"

@@ -4,7 +4,7 @@ from models import Medicine, InventoryBatch, Admin, Return, SaleHistory
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from database import SessionLocal
+from database import SessionLocal, ensure_schema
 from starlette.middleware.sessions import SessionMiddleware
 import bcrypt
 from pydantic import BaseModel, field_validator
@@ -24,12 +24,21 @@ app.add_middleware(
 
 app.add_middleware(SessionMiddleware, secret_key="change-this-to-something-random-later")
 
+@app.on_event("startup")
+def migrate_schema():
+    ensure_schema()
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+def require_admin(request: Request):
+    if "admin_id" not in request.session:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    return request.session["admin_id"]
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -84,13 +93,55 @@ class AddMedicineRequest(BaseModel):
     manufacture_date: date
     expiry_date: date
 
+class AddBatchRequest(BaseModel):
+    batch_number: str
+    quantity: int
+    manufacture_date: date
+    expiry_date: date
+
 @app.get("/medicines")
-def get_medicines(db: Session = Depends(get_db)):
-    return db.query(Medicine).all()
+def get_medicines(db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    medicines = db.query(Medicine).order_by(Medicine.name).all()
+    output = []
+    for medicine in medicines:
+        batches = db.query(InventoryBatch).filter(
+            InventoryBatch.medicine_id == medicine.medicine_id
+        ).order_by(InventoryBatch.expiry_date).all()
+        sales_count = db.query(SaleHistory).filter(
+            SaleHistory.medicine_id == medicine.medicine_id
+        ).count()
+        returns_count = db.query(Return).filter(
+            Return.medicine_id == medicine.medicine_id
+        ).count()
+        output.append({
+            "medicine_id": medicine.medicine_id,
+            "name": medicine.name,
+            "category": medicine.category,
+            "manufacturer": medicine.manufacturer,
+            "unit": medicine.unit,
+            "unit_price": float(medicine.unit_price),
+            "reorder_level": medicine.reorder_level,
+            "is_active": medicine.is_active,
+            "total_stock": sum(batch.quantity for batch in batches),
+            "batch_count": len(batches),
+            "sales_count": sales_count,
+            "returns_count": returns_count,
+            "batches": [
+                {
+                    "batch_id": batch.batch_id,
+                    "batch_number": batch.batch_number,
+                    "quantity": batch.quantity,
+                    "manufacture_date": batch.manufacture_date.isoformat(),
+                    "expiry_date": batch.expiry_date.isoformat()
+                }
+                for batch in batches
+            ]
+        })
+    return output
 
 @app.get("/dashboard/summary")
 def get_summary(db: Session = Depends(get_db)):
-    total_medicines = db.query(Medicine).count()
+    total_medicines = db.query(Medicine).filter(Medicine.is_active.is_(True)).count()
     total_stock = db.query(func.sum(InventoryBatch.quantity)).scalar() or 0
 
     # stock per medicine (summed across all its batches)
@@ -99,12 +150,15 @@ def get_summary(db: Session = Depends(get_db)):
         func.sum(InventoryBatch.quantity).label("stock")
     ).group_by(InventoryBatch.medicine_id).subquery()
 
-    low_stock_count = db.query(Medicine).join(
+    low_stock_count = db.query(Medicine).filter(Medicine.is_active.is_(True)).join(
         stock_by_medicine, Medicine.medicine_id == stock_by_medicine.c.medicine_id
     ).filter(stock_by_medicine.c.stock < Medicine.reorder_level).count()
 
     today = date.today()
-    expiring_count = db.query(InventoryBatch).filter(
+    expiring_count = db.query(InventoryBatch).join(
+        Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
+    ).filter(
+        Medicine.is_active.is_(True),
         InventoryBatch.expiry_date >= today,
         InventoryBatch.expiry_date <= today + timedelta(days=60)
     ).count()
@@ -125,7 +179,7 @@ def get_low_stock(db: Session = Depends(get_db)):
     results = db.query(
         Medicine.name, Medicine.category, Medicine.reorder_level,
         stock_by_medicine.c.stock
-    ).join(
+    ).filter(Medicine.is_active.is_(True)).join(
         stock_by_medicine, Medicine.medicine_id == stock_by_medicine.c.medicine_id
     ).filter(stock_by_medicine.c.stock < Medicine.reorder_level).all()
 
@@ -142,6 +196,7 @@ def get_expiring_stock(db: Session = Depends(get_db)):
     ).join(
         Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
     ).filter(
+        Medicine.is_active.is_(True),
         InventoryBatch.expiry_date >= today,
         InventoryBatch.expiry_date <= today + timedelta(days=60)
     ).order_by(InventoryBatch.expiry_date).all()
@@ -166,7 +221,7 @@ def get_current_stock(db: Session = Depends(get_db)):
         Medicine.reorder_level
     ).join(
         Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
-    ).order_by(InventoryBatch.expiry_date).all()
+    ).filter(Medicine.is_active.is_(True)).order_by(InventoryBatch.expiry_date).all()
 
     output = []
     for r in results:
@@ -239,12 +294,13 @@ def sell_stock(data: SellRequest, db: Session = Depends(get_db)):
     batch = db.query(InventoryBatch).filter(InventoryBatch.batch_id == data.batch_id).first()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    medicine = db.query(Medicine).filter(Medicine.medicine_id == batch.medicine_id).first()
+    if not medicine or not medicine.is_active:
+        raise HTTPException(status_code=409, detail="This medicine is archived and cannot receive stock activity")
     if batch.expiry_date < date.today():
         raise HTTPException(status_code=400, detail="Cannot sell an expired batch")
     if batch.quantity < data.quantity:
         raise HTTPException(status_code=400, detail=f"Only {batch.quantity} units available in this batch")
-
-    medicine = db.query(Medicine).filter(Medicine.medicine_id == batch.medicine_id).first()
 
     batch.quantity -= data.quantity
 
@@ -265,6 +321,9 @@ def customer_return(data: CustomerReturnRequest, db: Session = Depends(get_db)):
     batch = db.query(InventoryBatch).filter(InventoryBatch.batch_id == data.batch_id).first()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    medicine = db.query(Medicine).filter(Medicine.medicine_id == batch.medicine_id).first()
+    if not medicine or not medicine.is_active:
+        raise HTTPException(status_code=409, detail="This medicine is archived and cannot receive stock activity")
 
     batch.quantity += data.quantity
 
@@ -286,6 +345,9 @@ def supplier_return(data: SupplierReturnRequest, db: Session = Depends(get_db)):
     batch = db.query(InventoryBatch).filter(InventoryBatch.batch_id == data.batch_id).first()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    medicine = db.query(Medicine).filter(Medicine.medicine_id == batch.medicine_id).first()
+    if not medicine or not medicine.is_active:
+        raise HTTPException(status_code=409, detail="This medicine is archived and cannot receive stock activity")
     if batch.quantity < data.quantity:
         raise HTTPException(status_code=400, detail=f"Only {batch.quantity} units available to return")
 
@@ -352,7 +414,7 @@ def get_transactions(db: Session = Depends(get_db)):
     return transactions
 
 @app.post("/medicines")
-def add_medicine(data: AddMedicineRequest, db: Session = Depends(get_db)):
+def add_medicine(data: AddMedicineRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     if data.expiry_date <= data.manufacture_date:
         raise HTTPException(status_code=400, detail="Expiry date must be after manufacture date")
     if data.quantity <= 0:
@@ -385,6 +447,98 @@ def add_medicine(data: AddMedicineRequest, db: Session = Depends(get_db)):
         "batch_id": new_batch.batch_id
     }
 
+@app.post("/medicines/{medicine_id}/batches")
+def add_batch(medicine_id: int, data: AddBatchRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    medicine = db.query(Medicine).filter(Medicine.medicine_id == medicine_id).first()
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    if not medicine.is_active:
+        raise HTTPException(status_code=409, detail="Restore this medicine before adding a batch")
+    if data.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
+    if data.expiry_date <= data.manufacture_date:
+        raise HTTPException(status_code=400, detail="Expiry date must be after manufacture date")
+    duplicate = db.query(InventoryBatch).filter(
+        InventoryBatch.medicine_id == medicine_id,
+        InventoryBatch.batch_number == data.batch_number
+    ).first()
+    if duplicate:
+        raise HTTPException(status_code=409, detail="This batch number already exists for the medicine")
+
+    batch = InventoryBatch(medicine_id=medicine_id, **data.model_dump())
+    db.add(batch)
+    db.commit()
+    return {"message": "Batch added successfully", "batch_id": batch.batch_id}
+
+@app.post("/medicines/{medicine_id}/archive")
+def archive_medicine(medicine_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    medicine = db.query(Medicine).filter(Medicine.medicine_id == medicine_id).first()
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    if not medicine.is_active:
+        return {"message": "Medicine is already archived"}
+    if db.query(InventoryBatch).filter(
+        InventoryBatch.medicine_id == medicine_id,
+        InventoryBatch.quantity > 0
+    ).count():
+        raise HTTPException(status_code=409, detail="Clear remaining stock before archiving this medicine")
+
+    medicine.is_active = False
+    db.commit()
+    return {"message": "Medicine archived successfully"}
+
+@app.post("/medicines/{medicine_id}/restore")
+def restore_medicine(medicine_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    medicine = db.query(Medicine).filter(Medicine.medicine_id == medicine_id).first()
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    medicine.is_active = True
+    db.commit()
+    return {"message": "Medicine restored successfully"}
+
+@app.delete("/medicines/{medicine_id}")
+def delete_medicine(medicine_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    medicine = db.query(Medicine).filter(Medicine.medicine_id == medicine_id).first()
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+
+    sales_count = db.query(SaleHistory).filter(SaleHistory.medicine_id == medicine_id).count()
+    returns_count = db.query(Return).filter(Return.medicine_id == medicine_id).count()
+    if sales_count or returns_count:
+        raise HTTPException(
+            status_code=409,
+            detail="This medicine has analytics history and cannot be deleted. Keep it for reporting accuracy."
+        )
+
+    batches = db.query(InventoryBatch).filter(InventoryBatch.medicine_id == medicine_id).all()
+    if any(batch.quantity > 0 for batch in batches):
+        raise HTTPException(status_code=409, detail="Clear all remaining stock before deleting this medicine")
+
+    for batch in batches:
+        db.delete(batch)
+    db.delete(medicine)
+    db.commit()
+    return {"message": "Medicine deleted successfully"}
+
+@app.delete("/batches/{batch_id}")
+def delete_batch(batch_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    batch = db.query(InventoryBatch).filter(InventoryBatch.batch_id == batch_id).first()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if batch.quantity > 0:
+        raise HTTPException(status_code=409, detail="Only empty batches can be deleted")
+    if db.query(SaleHistory).filter(SaleHistory.medicine_id == batch.medicine_id).count():
+        raise HTTPException(
+            status_code=409,
+            detail="This batch belongs to a medicine with sales history and cannot be deleted"
+        )
+    if db.query(Return).filter(Return.batch_id == batch_id).count():
+        raise HTTPException(status_code=409, detail="This batch has return history and cannot be deleted")
+
+    db.delete(batch)
+    db.commit()
+    return {"message": "Batch deleted successfully"}
+
 @app.get("/stock/requirement")
 def get_stock_requirement(db: Session = Depends(get_db)):
     SAFETY_DAYS = 14
@@ -412,10 +566,11 @@ def get_stock_requirement(db: Session = Depends(get_db)):
         stock_by_medicine, Medicine.medicine_id == stock_by_medicine.c.medicine_id
     ).outerjoin(
         sales_by_medicine, Medicine.medicine_id == sales_by_medicine.c.medicine_id
-    ).all()
+    ).filter(Medicine.is_active.is_(True)).all()
 
     output = []
     for r in results:
+        is_fully_expired = r.current_stock is None
         current_stock = r.current_stock or 0
 
         if current_stock >= r.reorder_level:
@@ -439,7 +594,7 @@ def get_stock_requirement(db: Session = Depends(get_db)):
             "unit_price": float(r.unit_price),
             "estimated_cost": estimated_cost,
             "days_of_stock_left": days_of_stock_left,
-            "fully_expired": current_stock == 0
+            "fully_expired": is_fully_expired
         })
 
     output.sort(key=lambda x: (x["days_of_stock_left"] is None, x["days_of_stock_left"]))

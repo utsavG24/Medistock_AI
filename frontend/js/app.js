@@ -4,11 +4,17 @@
 
 const API_BASE = "http://127.0.0.1:8000";
 
+if (localStorage.getItem("medistock-theme") === "dark") {
+    document.documentElement.classList.add("dark-mode");
+}
+
 document.addEventListener("DOMContentLoaded", async function () {
     const admin = await requireLogin();
     if (!admin) return;
 
     console.log("Medistock frontend loaded");
+    initSidebarToggle();
+    initNotifications();
 
     const currentPage = window.location.pathname;
 
@@ -20,6 +26,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     await loadStockPage();
 } else if (currentPage.includes("analytics.html")) {
     await loadAnalyticsPage();
+} else if (currentPage.includes("settings.html")) {
+    loadSettingsPage();
+} else if (currentPage.includes("medicine.html")) {
+    await loadMedicinePage();
 } else {
     await loadDashboard();
 }
@@ -59,13 +69,59 @@ async function loadCurrentStockTable() {
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         const data = await response.json();
 
-        // Only show the first 10 rows on the dashboard preview
-        renderStockRows(data.slice(0, 10), tableBody);
+        // Keep the dashboard preview balanced instead of showing expiry-ordered rows only.
+        renderDashboardStockRows(getDashboardPreviewRows(data), tableBody);
 
     } catch (error) {
         console.error("Error loading current stock:", error);
         tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Unable to load stock data.</td></tr>`;
     }
+}
+
+function getDashboardPreviewRows(data) {
+    const groups = ["Low Stock", "Expiring Soon", "Expired", "Healthy", "Out of Stock"]
+        .map(status => data
+            .filter(item => item.status === status)
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+    const preview = [];
+
+    while (preview.length < 10 && groups.some(group => group.length)) {
+        groups.forEach(group => {
+            if (group.length && preview.length < 10) preview.push(group.shift());
+        });
+    }
+
+    return preview;
+}
+
+function renderDashboardStockRows(data, tableBody) {
+    tableBody.innerHTML = "";
+
+    if (data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No stock data available.</td></tr>`;
+        return;
+    }
+
+    data.forEach(item => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>
+                <div class="medicine-name">
+                    <div class="medicine-icon">${escapeHTML(item.name.charAt(0))}</div>
+                    <div>
+                        <strong>${escapeHTML(item.name)}</strong>
+                    </div>
+                </div>
+            </td>
+            <td>${escapeHTML(item.category)}</td>
+            <td>${escapeHTML(item.batch_number)}</td>
+            <td><strong>${item.stock}</strong></td>
+            <td>${formatDate(item.expiry_date)}</td>
+            <td>${statusBadge(item.status)}</td>
+        `;
+        tableBody.appendChild(row);
+    });
 }
 
 // ======================================================
@@ -848,3 +904,443 @@ function goToExpiringPage(page) {
 }
 
 console.log("app.js loaded — connected to FastAPI backend");
+
+// ======================================================
+// SETTINGS PAGE
+// ======================================================
+
+function loadSettingsPage() {
+    const savedSettings = JSON.parse(localStorage.getItem("medistock-settings") || "{}");
+    const settings = {
+        compactMode: false,
+        lowStockAlerts: true,
+        expiryAlerts: true,
+        weeklySummary: false,
+        ...savedSettings
+    };
+
+    Object.entries(settings).forEach(([id, value]) => {
+        const input = document.getElementById(id);
+        if (input) input.checked = value;
+    });
+    document.body.classList.toggle("compact-mode", settings.compactMode);
+    updateThemeOptions();
+
+    document.querySelectorAll(".toggle-input").forEach(input => {
+        input.addEventListener("change", () => {
+            settings[input.id] = input.checked;
+            localStorage.setItem("medistock-settings", JSON.stringify(settings));
+            document.body.classList.toggle("compact-mode", settings.compactMode);
+        });
+    });
+
+    document.querySelectorAll("[data-theme-choice]").forEach(button => {
+        button.addEventListener("click", () => {
+            const theme = button.dataset.themeChoice;
+            document.documentElement.classList.toggle("dark-mode", theme === "dark");
+            localStorage.setItem("medistock-theme", theme);
+            updateThemeOptions();
+        });
+    });
+
+    const faqSearch = document.getElementById("faqSearch");
+    if (faqSearch) faqSearch.addEventListener("input", filterFaqs);
+
+    const copySupport = document.getElementById("copySupport");
+    if (copySupport) copySupport.addEventListener("click", async () => {
+        const status = document.getElementById("copyStatus");
+        try {
+            await navigator.clipboard.writeText("support@medistock.app");
+            status.textContent = "Copied support@medistock.app";
+        } catch (error) {
+            status.textContent = "Email: support@medistock.app";
+        }
+    });
+
+    const resetButton = document.getElementById("resetSettings");
+    if (resetButton) resetButton.addEventListener("click", () => {
+        localStorage.removeItem("medistock-settings");
+        localStorage.removeItem("medistock-theme");
+        window.location.reload();
+    });
+}
+
+function updateThemeOptions() {
+    const theme = localStorage.getItem("medistock-theme") || "light";
+    document.querySelectorAll("[data-theme-choice]").forEach(button => {
+        button.classList.toggle("selected", button.dataset.themeChoice === theme);
+    });
+}
+
+function filterFaqs(event) {
+    const query = event.target.value.trim().toLowerCase();
+    let visibleCount = 0;
+    document.querySelectorAll("#faqList details").forEach(item => {
+        const matches = item.textContent.toLowerCase().includes(query);
+        item.hidden = !matches;
+        if (matches) visibleCount++;
+    });
+    document.getElementById("faqEmpty").hidden = visibleCount > 0;
+}
+
+// ======================================================
+// NOTIFICATIONS
+// ======================================================
+
+function initNotifications() {
+    const notificationButton = document.querySelector(".notification");
+    if (!notificationButton) return;
+
+    notificationButton.type = "button";
+    notificationButton.setAttribute("aria-expanded", "false");
+    notificationButton.setAttribute("aria-label", "Open notifications");
+    notificationButton.addEventListener("click", toggleNotifications);
+
+    document.addEventListener("click", event => {
+        const center = document.querySelector(".notification-center");
+        if (center && !center.contains(event.target) && !notificationButton.contains(event.target)) closeNotifications();
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeNotifications();
+    });
+
+    loadNotifications();
+}
+
+async function loadNotifications() {
+    const button = document.querySelector(".notification");
+    if (!button) return;
+
+    let notifications = [
+        { id: "welcome", title: "Welcome to Medistock", text: "Your inventory workspace is ready.", icon: "✦", tone: "good" }
+    ];
+
+    try {
+        const response = await fetch(`${API_BASE}/stock/current`);
+        if (response.ok) {
+            const stock = await response.json();
+            const lowStock = stock.filter(item => item.status === "Low Stock" || item.status === "Out of Stock");
+            const expiring = stock.filter(item => item.status === "Expiring Soon" || item.status === "Expired");
+
+            notifications = [];
+            if (lowStock.length) {
+                notifications.push({
+                    id: "low-stock",
+                    title: `${lowStock.length} stock alert${lowStock.length === 1 ? "" : "s"}`,
+                    text: `${lowStock[0].name}${lowStock.length > 1 ? " and more need attention." : " needs replenishing."}`,
+                    icon: "!",
+                    tone: "warning"
+                });
+            }
+            if (expiring.length) {
+                notifications.push({
+                    id: "expiry",
+                    title: `${expiring.length} expiry alert${expiring.length === 1 ? "" : "s"}`,
+                    text: `${expiring[0].name}${expiring.length > 1 ? " and more need review." : " needs an expiry review."}`,
+                    icon: "⌛",
+                    tone: "danger"
+                });
+            }
+            if (!notifications.length) {
+                notifications.push({ id: "all-clear", title: "All clear", text: "No urgent inventory alerts right now.", icon: "✓", tone: "good" });
+            }
+        }
+    } catch (error) {
+        console.error("Notification loading error:", error);
+    }
+
+    renderNotificationCenter(notifications);
+}
+
+function renderNotificationCenter(notifications) {
+    const button = document.querySelector(".notification");
+    if (!button) return;
+    button.parentElement.querySelector(".notification-center")?.remove();
+    const unreadIds = JSON.parse(localStorage.getItem("medistock-read-notifications") || "[]");
+    const unreadCount = notifications.filter(item => !unreadIds.includes(item.id)).length;
+    const center = document.createElement("div");
+    center.className = "notification-center";
+    center.innerHTML = `
+        <div class="notification-header">
+            <div><strong>Notifications</strong><span>${unreadCount ? `${unreadCount} unread` : "You're all caught up"}</span></div>
+            <button type="button" class="notification-clear">Mark all read</button>
+        </div>
+        <div class="notification-list">
+            ${notifications.map(item => `
+                <button type="button" class="notification-item ${unreadIds.includes(item.id) ? "read" : ""}" data-notification-id="${item.id}">
+                    <span class="notification-item-icon ${item.tone}">${item.icon}</span>
+                    <span><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.text)}</small></span>
+                    ${unreadIds.includes(item.id) ? "" : "<i></i>"}
+                </button>
+            `).join("")}
+        </div>
+    `;
+    button.parentElement.classList.add("notification-wrap");
+    button.parentElement.appendChild(center);
+    button.querySelector(".notification-dot")?.classList.toggle("hidden", unreadCount === 0);
+
+    center.querySelectorAll(".notification-item").forEach(item => {
+        item.addEventListener("click", () => markNotificationRead(item.dataset.notificationId));
+    });
+    center.querySelector(".notification-clear").addEventListener("click", markAllNotificationsRead);
+}
+
+function toggleNotifications() {
+    const center = document.querySelector(".notification-center");
+    if (!center) return;
+    const isOpen = center.classList.toggle("open");
+    document.querySelector(".notification")?.setAttribute("aria-expanded", String(isOpen));
+}
+
+function closeNotifications() {
+    const center = document.querySelector(".notification-center");
+    if (center) center.classList.remove("open");
+    document.querySelector(".notification")?.setAttribute("aria-expanded", "false");
+}
+
+function markNotificationRead(id) {
+    const readIds = JSON.parse(localStorage.getItem("medistock-read-notifications") || "[]");
+    if (!readIds.includes(id)) readIds.push(id);
+    localStorage.setItem("medistock-read-notifications", JSON.stringify(readIds));
+    closeNotifications();
+    loadNotifications();
+}
+
+function markAllNotificationsRead() {
+    document.querySelectorAll(".notification-item").forEach(item => item.classList.add("read"));
+    localStorage.setItem("medistock-read-notifications", JSON.stringify(
+        [...document.querySelectorAll(".notification-item")].map(item => item.dataset.notificationId)
+    ));
+    loadNotifications();
+}
+
+// ======================================================
+// MEDICINE MANAGEMENT PAGE
+// ======================================================
+
+let allMedicines = [];
+let medicineCurrentPage = 1;
+const MEDICINE_PAGE_SIZE = 10;
+let currentFilteredMedicines = [];
+
+async function loadMedicinePage() {
+    try {
+        const response = await fetch(`${API_BASE}/medicines`, { credentials: "include" });
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        allMedicines = await response.json();
+        updateMedicineStats();
+        populateMedicineFilters();
+        renderMedicineList();
+        initMedicineControls();
+    } catch (error) {
+        console.error("Error loading medicines:", error);
+        const list = document.getElementById("medicineList");
+        if (list) list.innerHTML = `<p class="medicine-empty">Unable to load medicines. Please try again.</p>`;
+    }
+}
+
+function updateMedicineStats() {
+    const batchCount = allMedicines.reduce((sum, medicine) => sum + medicine.batch_count, 0);
+    const unitCount = allMedicines.reduce((sum, medicine) => sum + medicine.total_stock, 0);
+    const reviewCount = allMedicines.filter(medicine =>
+        medicine.total_stock < medicine.reorder_level || medicine.batches.some(batch => batchStatus(batch) !== "Healthy")
+    ).length;
+    setText("medicineCount", allMedicines.length);
+    setText("batchCount", batchCount);
+    setText("medicineUnits", unitCount.toLocaleString());
+    setText("medicineReviewCount", reviewCount);
+}
+
+function populateMedicineFilters() {
+    const categorySelect = document.getElementById("medicineCategory");
+    if (!categorySelect) return;
+    categorySelect.innerHTML = `<option value="all">All categories</option>`;
+    [...new Set(allMedicines.map(medicine => medicine.category))].sort().forEach(category => {
+        categorySelect.innerHTML += `<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`;
+    });
+}
+
+function initMedicineControls() {
+    if (document.body.dataset.medicineControlsReady) return;
+    document.body.dataset.medicineControlsReady = "true";
+    ["medicineSearch", "medicineCategory", "medicineStatus", "medicineSort"].forEach(id => {
+        const resetAndRender = () => {
+            medicineCurrentPage = 1;
+            renderMedicineList();
+        };
+        document.getElementById(id)?.addEventListener("input", resetAndRender);
+        document.getElementById(id)?.addEventListener("change", resetAndRender);
+    });
+    document.getElementById("addBatchButton")?.addEventListener("click", openBatchModal);
+    document.getElementById("closeBatchModal")?.addEventListener("click", closeBatchModal);
+    document.getElementById("batchModalOverlay")?.addEventListener("click", event => {
+        if (event.target.id === "batchModalOverlay") closeBatchModal();
+    });
+    document.getElementById("batchForm")?.addEventListener("submit", submitBatch);
+}
+
+function renderMedicineList() {
+    const list = document.getElementById("medicineList");
+    if (!list) return;
+    const query = document.getElementById("medicineSearch").value.trim().toLowerCase();
+    const category = document.getElementById("medicineCategory").value;
+    const status = document.getElementById("medicineStatus").value;
+    const sort = document.getElementById("medicineSort").value;
+    let filtered = allMedicines.filter(medicine =>
+        (medicine.name.toLowerCase().includes(query) || medicine.category.toLowerCase().includes(query) || medicine.manufacturer.toLowerCase().includes(query)) &&
+        (category === "all" || medicine.category === category) &&
+        (status === "all" || (status === "active" ? medicine.is_active : !medicine.is_active))
+    );
+    filtered.sort((a, b) => {
+        if (sort === "stock_desc") return b.total_stock - a.total_stock;
+        if (sort === "stock_asc") return a.total_stock - b.total_stock;
+        if (sort === "batches_desc") return b.batch_count - a.batch_count;
+        return a.name.localeCompare(b.name);
+    });
+    currentFilteredMedicines = filtered;
+    const totalPages = Math.max(1, Math.ceil(filtered.length / MEDICINE_PAGE_SIZE));
+    if (medicineCurrentPage > totalPages) medicineCurrentPage = totalPages;
+    const start = (medicineCurrentPage - 1) * MEDICINE_PAGE_SIZE;
+    const visibleMedicines = filtered.slice(start, start + MEDICINE_PAGE_SIZE);
+    setText("medicineResultCount", `${filtered.length} profile${filtered.length === 1 ? "" : "s"}`);
+    document.getElementById("medicineEmpty").hidden = filtered.length > 0;
+    list.innerHTML = visibleMedicines.map(renderMedicineRecord).join("");
+    renderMedicinePagination(filtered.length);
+    list.querySelectorAll(".batch-add-link").forEach(button => button.addEventListener("click", () => openBatchModal(Number(button.dataset.medicineId))));
+    list.querySelectorAll(".delete-link").forEach(button => button.addEventListener("click", () => deleteMedicine(Number(button.dataset.medicineId), button.dataset.medicineName)));
+    list.querySelectorAll(".archive-link").forEach(button => button.addEventListener("click", () => archiveMedicine(Number(button.dataset.medicineId), button.dataset.medicineName, button.dataset.action)));
+    list.querySelectorAll(".batch-delete").forEach(button => button.addEventListener("click", () => deleteBatch(Number(button.dataset.batchId))));
+}
+
+function renderMedicineRecord(medicine) {
+    return `<details class="medicine-record">
+        <summary><span class="medicine-summary-name"><span class="medicine-icon">${escapeHTML(medicine.name.charAt(0))}</span><span><strong>${escapeHTML(medicine.name)}</strong><span>${escapeHTML(medicine.category)} · ${escapeHTML(medicine.manufacturer)}</span></span></span>
+            <span class="medicine-summary-value"><strong>${medicine.total_stock.toLocaleString()}</strong><span>Total units</span></span>
+            <span class="medicine-summary-value"><strong>${medicine.batch_count}</strong><span>Batches</span></span>
+            <span class="medicine-summary-value"><strong>₹${medicine.unit_price.toFixed(2)}</strong><span>Unit price</span></span>
+            <span class="medicine-actions">${medicine.is_active ? `<button type="button" class="batch-add-link" data-medicine-id="${medicine.medicine_id}">+ Batch</button><button type="button" class="archive-link" data-action="archive" data-medicine-id="${medicine.medicine_id}" data-medicine-name="${escapeHTML(medicine.name)}">Archive</button>` : `<button type="button" class="archive-link" data-action="restore" data-medicine-id="${medicine.medicine_id}" data-medicine-name="${escapeHTML(medicine.name)}">Restore</button>`}<button type="button" class="delete-link" data-medicine-id="${medicine.medicine_id}" data-medicine-name="${escapeHTML(medicine.name)}">Delete</button></span>
+        </summary>
+        <div class="batch-details"><div class="batch-details-header"><span>Batch</span><span>Quantity</span><span>Manufactured</span><span>Expiry</span><span>Action</span></div>
+            ${medicine.batches.map(batch => `<div class="batch-line"><strong>${escapeHTML(batch.batch_number)}</strong><span>${batch.quantity}</span><span>${formatDate(batch.manufacture_date)}</span><span>${formatDate(batch.expiry_date)}</span><button type="button" class="batch-delete" data-batch-id="${batch.batch_id}">Delete</button></div>`).join("")}
+        </div>
+    </details>`;
+}
+
+function batchStatus(batch) {
+    if (batch.quantity === 0) return "Out of Stock";
+    const days = Math.ceil((new Date(`${batch.expiry_date}T00:00:00`) - new Date()) / 86400000);
+    if (days < 0) return "Expired";
+    if (days <= 60) return "Expiring Soon";
+    return "Healthy";
+}
+
+function openBatchModal(medicineId = null) {
+    const select = document.getElementById("batchMedicine");
+    select.innerHTML = allMedicines.map(medicine => `<option value="${medicine.medicine_id}" ${medicine.medicine_id === medicineId ? "selected" : ""}>${escapeHTML(medicine.name)} · ${escapeHTML(medicine.category)}</option>`).join("");
+    document.getElementById("batchMessage").textContent = "";
+    document.getElementById("batchForm").reset();
+    if (medicineId) select.value = medicineId;
+    document.getElementById("batchModalOverlay").hidden = false;
+}
+
+function closeBatchModal() {
+    document.getElementById("batchModalOverlay").hidden = true;
+}
+
+async function submitBatch(event) {
+    event.preventDefault();
+    const message = document.getElementById("batchMessage");
+    message.textContent = "";
+    const medicineId = document.getElementById("batchMedicine").value;
+    const payload = {
+        batch_number: document.getElementById("batchNumber").value.trim(),
+        quantity: parseInt(document.getElementById("batchQuantity").value, 10),
+        manufacture_date: document.getElementById("batchManufactureDate").value,
+        expiry_date: document.getElementById("batchExpiryDate").value
+    };
+    try {
+        const response = await fetch(`${API_BASE}/medicines/${medicineId}/batches`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const data = await response.json();
+        if (!response.ok) { message.textContent = data.detail || "Unable to add batch."; return; }
+        closeBatchModal();
+        await loadMedicinePage();
+    } catch (error) { message.textContent = "Unable to reach the server."; }
+}
+
+async function deleteMedicine(medicineId, medicineName) {
+    if (!window.confirm(`Delete ${medicineName}? This is only possible when it has no stock or analytics history.`)) return;
+    await sendMedicineDelete(`${API_BASE}/medicines/${medicineId}`);
+}
+
+async function archiveMedicine(medicineId, medicineName, action) {
+    const isRestore = action === "restore";
+    const prompt = isRestore
+        ? `Restore ${medicineName} to active inventory?`
+        : `Archive ${medicineName}? It must have zero remaining stock.`;
+    if (!window.confirm(prompt)) return;
+    await sendMedicineDelete(`${API_BASE}/medicines/${medicineId}/${isRestore ? "restore" : "archive"}`, "POST");
+}
+
+async function deleteBatch(batchId) {
+    if (!window.confirm("Delete this empty batch? Existing return history will be protected.")) return;
+    await sendMedicineDelete(`${API_BASE}/batches/${batchId}`);
+}
+
+async function sendMedicineDelete(url, method = "DELETE") {
+    try {
+        const response = await fetch(url, { method, credentials: "include" });
+        const data = await response.json();
+        if (!response.ok) { window.alert(data.detail || "Unable to delete this record."); return; }
+        await loadMedicinePage();
+    } catch (error) { window.alert("Unable to reach the server."); }
+}
+
+function renderMedicinePagination(totalItems) {
+    const container = document.getElementById("medicinePagination");
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil(totalItems / MEDICINE_PAGE_SIZE));
+    container.innerHTML = `
+        <button class="page-btn" onclick="goToMedicinePage(${medicineCurrentPage - 1})" ${medicineCurrentPage === 1 ? "disabled" : ""}>← Prev</button>
+        <span class="page-indicator">Page ${medicineCurrentPage} of ${totalPages}</span>
+        <button class="page-btn" onclick="goToMedicinePage(${medicineCurrentPage + 1})" ${medicineCurrentPage === totalPages ? "disabled" : ""}>Next →</button>
+    `;
+}
+
+function goToMedicinePage(page) {
+    const totalPages = Math.max(1, Math.ceil(currentFilteredMedicines.length / MEDICINE_PAGE_SIZE));
+    medicineCurrentPage = Math.min(Math.max(page, 1), totalPages);
+    renderMedicineList();
+}
+
+// ======================================================
+// SIDEBAR NAVIGATION
+// ======================================================
+
+function initSidebarToggle() {
+    const sidebar = document.querySelector(".sidebar");
+    if (!sidebar || document.querySelector(".sidebar-toggle")) return;
+
+    const toggle = document.createElement("button");
+    toggle.className = "sidebar-toggle";
+    toggle.type = "button";
+    toggle.setAttribute("aria-label", "Collapse navigation");
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.innerHTML = "<span></span><span></span><span></span>";
+    document.body.appendChild(toggle);
+
+    const savedState = localStorage.getItem("medistock-sidebar-collapsed");
+    const shouldCollapse = savedState === "true" || (savedState === null && window.innerWidth <= 700);
+    setSidebarCollapsed(shouldCollapse, toggle);
+
+    toggle.addEventListener("click", () => {
+        setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"), toggle);
+    });
+}
+
+function setSidebarCollapsed(collapsed, toggle) {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    localStorage.setItem("medistock-sidebar-collapsed", String(collapsed));
+    toggle.setAttribute("aria-expanded", String(!collapsed));
+    toggle.setAttribute("aria-label", collapsed ? "Open navigation" : "Collapse navigation");
+    toggle.classList.toggle("is-collapsed", collapsed);
+}
