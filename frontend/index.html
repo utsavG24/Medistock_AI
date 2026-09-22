@@ -27,6 +27,7 @@
 
         <nav class="navigation">
 
+            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
             <p class="menu-title">MAIN MENU</p>
 
             <a href="index.html" class="nav-item active">
@@ -61,6 +62,7 @@
                 Sales Analytics
             </a>
 
+            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
             <a href="settings.html" class="nav-item">
                 <span>⚙</span>
                 Settings
@@ -136,8 +138,7 @@
                 <div>
                     <p>Total Medicines</p>
                     <h2 id="totalMedicines">248</h2>
-                    <span class="positive">↑ 8.2%</span>
-                    <small>from last month</small>
+                    <small>Active medicines in catalog</small>
                 </div>
             </div>
 
@@ -148,8 +149,7 @@
                 <div>
                     <p>Total Stock</p>
                     <h2 id="totalStock">8,420</h2>
-                    <span class="positive">↑ 4.6%</span>
-                    <small>units available</small>
+                    <small>Individual units currently available</small>
                 </div>
             </div>
 
@@ -181,57 +181,26 @@
         <!-- DASHBOARD GRID -->
         <section class="dashboard-grid">
 
-            <!-- SALES CHART PLACEHOLDER -->
+            <!-- SALES CHART -->
             <div class="panel sales-panel">
 
                 <div class="panel-header">
 
                     <div>
-                        <h3>Inventory Overview</h3>
-                        <p>Stock movement over the last 6 months</p>
+                        <h3>Sales History</h3>
+                        <p>Revenue trend across your recent sales</p>
                     </div>
 
-                    <select>
-                        <option>Last 6 months</option>
-                        <option>Last 30 days</option>
-                        <option>Last year</option>
+                    <select id="salesTrendPeriod">
+                        <option value="fy" selected>Current financial year</option>
+                        <option value="6m">Last 6 months</option>
+                        <option value="30d">Last 30 days</option>
+                        <option value="1y">Last year</option>
                     </select>
 
                 </div>
 
-                <div class="chart-placeholder">
-
-                    <div class="chart-y-axis">
-                        <span>1000</span>
-                        <span>750</span>
-                        <span>500</span>
-                        <span>250</span>
-                        <span>0</span>
-                    </div>
-
-                    <div class="fake-chart">
-
-                        <div class="chart-line">
-                            <span style="height: 40%;"></span>
-                            <span style="height: 55%;"></span>
-                            <span style="height: 48%;"></span>
-                            <span style="height: 70%;"></span>
-                            <span style="height: 62%;"></span>
-                            <span style="height: 85%;"></span>
-                        </div>
-
-                        <div class="chart-months">
-                            <span>Mar</span>
-                            <span>Apr</span>
-                            <span>May</span>
-                            <span>Jun</span>
-                            <span>Jul</span>
-                            <span>Aug</span>
-                        </div>
-
-                    </div>
-
-                </div>
+                <div id="salesTrendChart" class="chart-placeholder"></div>
 
             </div>
 
@@ -248,13 +217,14 @@
 
                 </div>
 
+                <div id="aiInsightsList">
                 <div class="ai-insight high">
 
                     <div class="insight-icon">!</div>
 
                     <div>
-                        <strong>5 medicines may run out</strong>
-                        <p>Based on predicted demand for the next 7 days.</p>
+                        <strong>Loading inventory insights...</strong>
+                        <p>Checking recent demand and current stock.</p>
                     </div>
 
                 </div>
@@ -265,8 +235,8 @@
                     <div class="insight-icon">!</div>
 
                     <div>
-                        <strong>12 medicines are expiring</strong>
-                        <p>Review stock expiring within 60 days.</p>
+                        <strong>Loading expiry status...</strong>
+                        <p>Checking batches expiring within 60 days.</p>
                     </div>
 
                 </div>
@@ -277,10 +247,20 @@
                     <div class="insight-icon">✓</div>
 
                     <div>
-                        <strong>73% stock level is healthy</strong>
-                        <p>Current inventory is within the safe range.</p>
+                        <strong>Loading stock health...</strong>
+                        <p>Calculating the current healthy stock percentage.</p>
                     </div>
 
+                </div>
+
+                </div>
+
+                <div class="ai-chat-link">
+                    <div>
+                        <strong>Need a detailed answer?</strong>
+                        <p>Ask questions about your complete inventory and transaction history.</p>
+                    </div>
+                    <a href="ai-chat.html" class="view-button">Open AI Chat →</a>
                 </div>
 
             </div>

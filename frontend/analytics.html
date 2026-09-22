@@ -24,6 +24,7 @@
 
         <nav class="navigation">
 
+            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
             <p class="menu-title">MAIN MENU</p>
 
             <a href="index.html" class="nav-item">
@@ -58,6 +59,7 @@
                 Sales Analytics
             </a>
 
+            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
             <a href="settings.html" class="nav-item">
                 <span>⚙</span>
                 Settings
@@ -108,9 +110,9 @@
             <div class="stat-card">
                 <div class="stat-icon stock-icon">💰</div>
                 <div>
-                    <p>Total Revenue</p>
+                    <p>Gross Revenue</p>
                     <h2 id="totalRevenue">₹0</h2>
-                    <small>From all recorded sales</small>
+                    <small>Sales revenue before costs (FY 2026-27)</small>
                 </div>
             </div>
 
@@ -157,6 +159,13 @@
             </select>
         </div>
         <div class="filter-box">
+            <select id="txnFinancialYearFilter" aria-label="Filter by financial year">
+                <option value="current">FY 2026-27</option>
+                <option value="previous">FY 2025-26</option>
+                <option value="all">All Financial Years</option>
+            </select>
+        </div>
+        <div class="filter-box">
             <select id="txnSortSelect">
                 <option value="date_desc">Date (Newest)</option>
                 <option value="date_asc">Date (Oldest)</option>
@@ -188,6 +197,7 @@
                         <tr>
                             <th>Type</th>
                             <th>Medicine</th>
+                            <th>Batch</th>
                             <th>Quantity</th>
                             <th>Amount</th>
                             <th>Reason</th>

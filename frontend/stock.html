@@ -29,6 +29,7 @@
 
         <nav class="navigation">
 
+            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
             <p class="menu-title">MAIN MENU</p>
 
             <a href="index.html" class="nav-item">
@@ -64,6 +65,7 @@
                 Sales Analytics
             </a>
 
+            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
             <a href="settings.html" class="nav-item">
                 <span>⚙</span>
                 Settings
@@ -163,9 +165,9 @@
                 </div>
 
                 <div>
-                    <p>Total Units</p>
+                    <p>Total Individual Units</p>
                     <h2 id="totalUnits">0</h2>
-                    <small>Units currently available</small>
+                    <small>Across active batches</small>
                 </div>
 
             </div>
@@ -312,6 +314,14 @@
         <label for="actionQuantity">Quantity</label>
         <input type="number" id="actionQuantity" min="1">
 
+        <div id="actionSaleUnitField" style="display:none;">
+            <label for="actionSaleUnit">Sell as</label>
+            <select id="actionSaleUnit">
+                <option value="unit">Individual units</option>
+                <option value="strip">Strips</option>
+            </select>
+        </div>
+
         <div id="actionReasonField">
             <label for="actionReason">Reason (optional)</label>
             <input type="text" id="actionReason" placeholder="e.g. damaged packaging">
@@ -343,10 +353,30 @@
         <label for="addManufacturer">Manufacturer</label>
         <input type="text" id="addManufacturer">
 
-        <label for="addUnit">Unit (e.g. Tablet, Syrup)</label>
-        <input type="text" id="addUnit">
+        <label for="addUnit">Base unit</label>
+        <select id="addUnit">
+            <option value="Tablet">Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Bottle">Bottle</option>
+            <option value="Injection">Injection</option>
+            <option value="Vial">Vial</option>
+            <option value="Ampoule">Ampoule</option>
+            <option value="Tube">Tube</option>
+            <option value="Sachet">Sachet</option>
+            <option value="Drops">Drops</option>
+            <option value="Other">Other</option>
+        </select>
 
-        <label for="addUnitPrice">Unit Price</label>
+        <label for="addUnitsPerStrip">Individual units per strip</label>
+        <input type="number" id="addUnitsPerStrip" min="1" value="1">
+
+        <label for="addPriceBasis">Price basis</label>
+        <select id="addPriceBasis">
+            <option value="strip" selected>Price per strip</option>
+            <option value="unit">Price per individual unit</option>
+        </select>
+
+        <label for="addUnitPrice">Price</label>
         <input type="number" id="addUnitPrice" min="0" step="0.01">
 
         <label for="addReorderLevel">Reorder Level</label>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat - MEDISTOCK</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
+            <div><h2>MEDISTOCK</h2><span>Stock. Track. Forecast.</span></div>
+        </div>
+        <nav class="navigation">
+            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
+            <p class="menu-title">MAIN MENU</p>
+            <a href="index.html" class="nav-item"><span>▣</span>Dashboard</a>
+            <a href="stock.html" class="nav-item"><span>▤</span>Current Stock</a>
+            <a href="expiring-stock.html" class="nav-item"><span>⚠</span>Expiring Stock</a>
+            <a href="stock-requirement.html" class="nav-item"><span>◈</span>Stock Requirement</a>
+            <p class="menu-title">MANAGEMENT</p>
+            <a href="medicine.html" class="nav-item"><span>▥</span>Medicines</a>
+            <a href="analytics.html" class="nav-item"><span>↗</span>Sales Analytics</a>
+            <a href="ai-chat.html" class="nav-item active"><span>✦</span>AI Chat</a>
+            <a href="settings.html" class="nav-item"><span>⚙</span>Settings</a>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="admin-avatar">A</div>
+            <div class="admin-info"><strong>Admin</strong><span>Pharmacy Manager</span></div>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+        </div>
+    </aside>
+
+    <main class="main-content ai-chat-page">
+        <header class="topbar">
+            <div><h1>AI Chat</h1><p>Ask questions using your complete pharmacy data.</p></div>
+        </header>
+        <section class="page-info-card compact-info-card">
+            <div class="page-info-mark">✦</div>
+            <div><span class="eyebrow">Inventory assistant</span><h2>Get a complete answer from your records.</h2><p>Medistock can review all medicines, batches, sales, returns, and reorder details.</p></div>
+        </section>
+        <section class="ai-chat-layout">
+            <div class="panel ai-chat-panel">
+                <div id="aiChatMessages" class="ai-chat-messages" aria-live="polite">
+                    <div class="ai-chat-message assistant">Hello. Ask me about any part of your pharmacy inventory, including specific batches, dates, sales, returns, or reorder quantities.</div>
+                </div>
+                <form id="aiChatForm" class="ai-chat-form">
+                    <label class="sr-only" for="aiChatInput">Ask Medistock a question</label>
+                    <div class="ai-chat-input-row">
+                        <textarea id="aiChatInput" rows="3" maxlength="2000" placeholder="Ask a detailed question about your inventory..." required></textarea>
+                        <button id="aiVoiceButton" type="button" class="voice-btn" aria-label="Use voice input" title="Use voice input">
+                            <img src="img/microphone.png" alt="">
+                        </button>
+                    </div>
+                    <button id="aiChatSend" type="submit">Send question</button>
+                </form>
+            </div>
+            <aside class="panel ai-chat-prompts">
+                <h3>Try asking</h3>
+                <button type="button" data-chat-question="List every medicine that needs reordering, with current stock and suggested order quantity.">Full reorder list</button>
+                <button type="button" data-chat-question="Show all batches expiring within 60 days, including medicine, batch number, quantity, and expiry date.">Expiry details</button>
+                <button type="button" data-chat-question="Give me the complete sales and returns summary for my pharmacy.">Sales and returns</button>
+                <button type="button" data-chat-question="Which medicines have low stock, and what are their reorder levels?">Low-stock analysis</button>
+            </aside>
+        </section>
+    </main>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

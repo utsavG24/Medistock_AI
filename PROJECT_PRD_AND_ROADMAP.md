@@ -61,6 +61,7 @@ The product is designed for pharmacy administrators who need a clear operational
 
 - Displays total revenue, sales, customer returns, and supplier returns.
 - Lists transaction history.
+- Records and displays the batch linked to each new sale; older sales without a batch link remain available for historical reporting.
 - Supports search, transaction-type filtering, date filtering, sorting, and pagination.
 - Keeps archived medicines available in historical analytics.
 
@@ -224,7 +225,6 @@ The Medicine model includes an `is_active` flag. Existing PostgreSQL databases r
 
 ### Analytics Integrity
 
-- Add `batch_id` to `SaleHistory` so each sale is linked to the exact batch.
 - Preserve immutable transaction snapshots such as medicine name, batch number, and unit price at the time of sale.
 - Add transaction correction workflows instead of deleting transactions.
 - Add export to CSV or PDF.

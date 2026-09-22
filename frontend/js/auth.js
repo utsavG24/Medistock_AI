@@ -65,6 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
         signupForm.addEventListener("submit", async function (e) {
             e.preventDefault();
             const full_name = document.getElementById("signupFullName").value.trim();
+            const pharmacy_name = document.getElementById("signupPharmacyName").value.trim();
             const username = document.getElementById("signupUsername").value.trim();
             const password = document.getElementById("signupPassword").value;
             const messageEl = document.getElementById("signupMessage");
@@ -76,7 +77,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     method: "POST",
                     credentials: "include",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, password, full_name })
+                    body: JSON.stringify({ username, password, full_name, pharmacy_name })
                 });
 
                 const data = await response.json();
@@ -122,6 +123,8 @@ async function requireLogin() {
         const data = await response.json();
         const adminNameEl = document.querySelector(".admin-info strong");
         if (adminNameEl) adminNameEl.textContent = data.full_name;
+        const pharmacyNameEl = document.querySelector(".admin-info span");
+        if (pharmacyNameEl) pharmacyNameEl.textContent = data.pharmacy_name || "Pharmacy";
         const adminAvatarEl = document.querySelector(".admin-avatar");
         if (adminAvatarEl && data.full_name) {
             adminAvatarEl.textContent = data.full_name.trim().charAt(0).toUpperCase();
