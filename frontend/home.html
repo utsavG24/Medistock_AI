@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/home.css">
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
 </head>
 <body>
 
@@ -112,37 +114,37 @@
 
     <div class="features">
         <div class="feature-card fade-in" style="transition-delay: 0.1s;">
-            <div class="icon green">💊</div>
+            <div class="icon green"><i data-lucide="pill"></i></div>
             <h3>Real-Time Inventory</h3>
             <p>Every medicine is tracked batch by batch. The moment a sale happens or stock is returned, your numbers update — no end-of-day manual recount required.</p>
         </div>
 
         <div class="feature-card fade-in" style="transition-delay: 0.2s;">
-            <div class="icon yellow">⚠️</div>
+            <div class="icon yellow"><i data-lucide="triangle-alert"></i></div>
             <h3>Low Stock Alerts</h3>
             <p>Set a reorder threshold once per medicine, and Medistock watches it for you — surfacing exactly which items need restocking before you run out mid-sale.</p>
         </div>
 
         <div class="feature-card fade-in" style="transition-delay: 0.3s;">
-            <div class="icon red">⏳</div>
+            <div class="icon red"><i data-lucide="clock-alert"></i></div>
             <h3>Expiry Tracking</h3>
             <p>Batches expiring within 60 days are flagged and sorted soonest-first, so expired stock becomes a rare exception instead of a routine write-off.</p>
         </div>
 
         <div class="feature-card fade-in" style="transition-delay: 0.4s;">
-            <div class="icon blue">🤖</div>
+            <div class="icon blue"><i data-lucide="bot"></i></div>
             <h3>AI-Powered Insights</h3>
             <p>Predictive recommendations on what's likely to run out based on recent demand — so restocking is a decision you make ahead of time, not a scramble after the fact.</p>
         </div>
 
         <div class="feature-card fade-in" style="transition-delay: 0.5s;">
-            <div class="icon purple">↩️</div>
+            <div class="icon purple"><i data-lucide="undo-2"></i></div>
             <h3>Sales & Returns Tracking</h3>
             <p>Log sales, customer returns, and supplier returns as separate, auditable events — so your stock numbers and your transaction history always agree with each other.</p>
         </div>
 
         <div class="feature-card fade-in" style="transition-delay: 0.6s;">
-            <div class="icon teal">🔒</div>
+            <div class="icon teal"><i data-lucide="lock-keyhole"></i></div>
             <h3>Secure Admin Access</h3>
             <p>Every account is password-protected with industry-standard hashing, and your session stays private to you — built for a single pharmacy's trusted staff.</p>
         </div>
@@ -172,6 +174,7 @@
     }, { threshold: 0.15 });
 
     fadeEls.forEach(el => observer.observe(el));
+    if (window.lucide) lucide.createIcons();
 </script>
 
 </body>

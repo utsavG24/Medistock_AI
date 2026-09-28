@@ -9,9 +9,19 @@
 
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 
-<body>
+<body class="app-loading">
+
+    <div class="app-loading-screen" aria-hidden="true">
+        <div class="skeleton-sidebar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="skeleton-main">
+            <div class="skeleton-heading"><i></i><i></i></div>
+            <div class="skeleton-stats"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+    </div>
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -25,50 +35,50 @@
     </div>
 </div>
 
-        <nav class="navigation">
+    <nav class="navigation">
 
-            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
-            <p class="menu-title">MAIN MENU</p>
+        <a href="home.html" class="nav-item"><span><i data-lucide="home"></i></span>Home</a>
+        <p class="menu-title">MAIN MENU</p>
 
-            <a href="index.html" class="nav-item active">
-                <span>▣</span>
-                Dashboard
-            </a>
+        <a href="index.html" class="nav-item active">
+        <span><i data-lucide="layout-dashboard"></i></span>
+        Dashboard
+        </a>
 
-            <a href="stock.html" class="nav-item">
-                <span>▤</span>
-                Current Stock
-            </a>
+        <a href="stock.html" class="nav-item">
+            <span><i data-lucide="list"></i></span>
+            Current Stock
+        </a>
 
-            <a href="expiring-stock.html" class="nav-item">
-                <span>⚠</span>
-                Expiring Stock
-            </a>
+        <a href="expiring-stock.html" class="nav-item">
+            <span><i data-lucide="alert-triangle"></i></span>
+            Expiring Stock
+        </a>
 
-            <a href="stock-requirement.html" class="nav-item">
-                <span>◈</span>
-                Stock Requirement
-            </a>
+        <a href="stock-requirement.html" class="nav-item">
+            <span><i data-lucide="clipboard-list"></i></span>
+            Stock Requirement
+        </a>
 
-            <p class="menu-title">MANAGEMENT</p>
+        <p class="menu-title">MANAGEMENT</p>
 
-            <a href="medicine.html" class="nav-item">
-                <span>▥</span>
-                Medicines
-            </a>
+        <a href="medicine.html" class="nav-item">
+            <span><i data-lucide="pill"></i></span>
+            Medicines
+        </a>
 
-            <a href="analytics.html" class="nav-item">
-                <span>↗</span>
-                Sales Analytics
-            </a>
+        <a href="analytics.html" class="nav-item">
+            <span><i data-lucide="trending-up"></i></span>
+            Sales Analytics
+        </a>
 
-            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
-            <a href="settings.html" class="nav-item">
-                <span>⚙</span>
-                Settings
-            </a>
+        <a href="ai-chat.html" class="nav-item"><span><i data-lucide="sparkles"></i></span>AI Chat</a>
+        <a href="settings.html" class="nav-item">
+            <span><i data-lucide="settings"></i></span>
+            Settings
+        </a>
 
-        </nav>
+    </nav>
 
         <div class="sidebar-bottom">
             <div class="admin-avatar">A</div>
@@ -78,7 +88,7 @@
                 <span>Pharmacy Manager</span>
             </div>
 
-            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;"><i data-lucide="log-out"></i></span>
         </div>
 
     </aside>
@@ -97,15 +107,9 @@
 
             <div class="topbar-right">
 
-                <button class="notification">
-                    🔔
-                    <span class="notification-dot"></span>
-                </button>
+                <button class="notification"><i data-lucide="bell"></i><span class="notification-dot"></span></button>
 
-                <div class="date">
-                    📅
-                    <span id="current-date">1 Aug 2026</span>
-                </div>
+                <div class="date"><i data-lucide="calendar"></i><span id="current-date"></span></div>
 <script>
     // Get the current date and force the timezone formatting to Asia/Kolkata (IST)
     const formattedDate = new Date().toLocaleDateString('en-IN', {
@@ -133,7 +137,8 @@
         <section class="stats-grid">
 
             <div class="stat-card">
-                <div class="stat-icon medicines-icon">💊</div>
+                
+                <div class="stat-icon medicines-icon"><i data-lucide="pill"></i></div>
 
                 <div>
                     <p>Total Medicines</p>
@@ -144,7 +149,8 @@
 
 
             <div class="stat-card">
-                <div class="stat-icon stock-icon">📦</div>
+                <div class="stat-icon stock-icon"><i data-lucide="package"></i></div>
+
 
                 <div>
                     <p>Total Stock</p>
@@ -155,7 +161,7 @@
 
 
             <div class="stat-card warning-card">
-                <div class="stat-icon warning-icon">⚠️</div>
+                <div class="stat-icon warning-icon"><i data-lucide="triangle-alert"></i></div>
 
                 <div>
                     <p>Low Stock</p>
@@ -166,7 +172,7 @@
 
 
             <div class="stat-card danger-card">
-                <div class="stat-icon danger-icon">⏳</div>
+                <div class="stat-icon danger-icon"><i data-lucide="hourglass"></i></div>
 
                 <div>
                     <p>Expiring Soon</p>
@@ -209,50 +215,36 @@
             <div class="panel ai-panel">
 
                 <div class="panel-header">
-
                     <div>
-                        <h3>🤖 AI Insights</h3>
+                        <h3><i data-lucide="bot"></i> AI Insights</h3>
                         <p>Smart inventory recommendations</p>
                     </div>
-
                 </div>
 
                 <div id="aiInsightsList">
-                <div class="ai-insight high">
-
-                    <div class="insight-icon">!</div>
-
-                    <div>
-                        <strong>Loading inventory insights...</strong>
-                        <p>Checking recent demand and current stock.</p>
+                    <div class="ai-insight high">
+                        <div class="insight-icon"><i data-lucide="triangle-alert"></i></div>
+                        <div>
+                            <strong>Loading inventory insights...</strong>
+                            <p>Checking recent demand and current stock.</p>
+                        </div>
                     </div>
 
-                </div>
-
-
-                <div class="ai-insight medium">
-
-                    <div class="insight-icon">!</div>
-
-                    <div>
-                        <strong>Loading expiry status...</strong>
-                        <p>Checking batches expiring within 60 days.</p>
+                    <div class="ai-insight medium">
+                        <div class="insight-icon"><i data-lucide="triangle-alert"></i></div>
+                        <div>
+                            <strong>Loading expiry status...</strong>
+                            <p>Checking batches expiring within 60 days.</p>
+                        </div>
                     </div>
 
-                </div>
-
-
-                <div class="ai-insight good">
-
-                    <div class="insight-icon">✓</div>
-
-                    <div>
-                        <strong>Loading stock health...</strong>
-                        <p>Calculating the current healthy stock percentage.</p>
+                    <div class="ai-insight good">
+                        <div class="insight-icon"><i data-lucide="circle-check"></i></div>
+                        <div>
+                            <strong>Loading stock health...</strong>
+                            <p>Calculating the current healthy stock percentage.</p>
+                        </div>
                     </div>
-
-                </div>
-
                 </div>
 
                 <div class="ai-chat-link">
@@ -262,7 +254,6 @@
                     </div>
                     <a href="ai-chat.html" class="view-button">Open AI Chat →</a>
                 </div>
-
             </div>
 
         </section>

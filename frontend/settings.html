@@ -7,13 +7,22 @@
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/settings.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>
         if (localStorage.getItem("medistock-theme") === "dark") {
             document.documentElement.classList.add("dark-mode");
         }
     </script>
 </head>
-<body class="settings-page">
+<body class="settings-page app-loading">
+    <div class="app-loading-screen" aria-hidden="true">
+        <div class="skeleton-sidebar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="skeleton-main">
+            <div class="skeleton-heading"><i></i><i></i></div>
+            <div class="skeleton-stats"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+    </div>
     <aside class="sidebar">
         <div class="logo">
             <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
@@ -24,18 +33,47 @@
         </div>
 
         <nav class="navigation">
-            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
+
+            <a href="home.html" class="nav-item"><span><i data-lucide="home"></i></span>Home</a>
             <p class="menu-title">MAIN MENU</p>
-            <a href="index.html" class="nav-item"><span>▣</span>Dashboard</a>
-            <a href="stock.html" class="nav-item"><span>▤</span>Current Stock</a>
-            <a href="expiring-stock.html" class="nav-item"><span>⚠</span>Expiring Stock</a>
-            <a href="stock-requirement.html" class="nav-item"><span>◈</span>Stock Requirement</a>
+
+            <a href="index.html" class="nav-item">
+                <span><i data-lucide="layout-dashboard"></i></span>
+                Dashboard
+            </a>
+
+            <a href="stock.html" class="nav-item">
+                <span><i data-lucide="list"></i></span>
+                Current Stock
+            </a>
+
+            <a href="expiring-stock.html" class="nav-item">
+                <span><i data-lucide="alert-triangle"></i></span>
+                Expiring Stock
+            </a>
+
+            <a href="stock-requirement.html" class="nav-item">
+                <span><i data-lucide="clipboard-list"></i></span>
+                Stock Requirement
+            </a>
 
             <p class="menu-title">MANAGEMENT</p>
-            <a href="medicine.html" class="nav-item"><span>▥</span>Medicines</a>
-            <a href="analytics.html" class="nav-item"><span>↗</span>Sales Analytics</a>
-            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
-            <a href="settings.html" class="nav-item active"><span>⚙</span>Settings</a>
+
+            <a href="medicine.html" class="nav-item">
+                <span><i data-lucide="pill"></i></span>
+                Medicines
+            </a>
+
+            <a href="analytics.html" class="nav-item">
+                <span><i data-lucide="trending-up"></i></span>
+                Sales Analytics
+            </a>
+
+            <a href="ai-chat.html" class="nav-item"><span><i data-lucide="sparkles"></i></span>AI Chat</a>
+            <a href="settings.html" class="nav-item active">
+                <span><i data-lucide="settings"></i></span>
+                Settings
+            </a>
         </nav>
 
         <div class="sidebar-bottom">
@@ -44,7 +82,7 @@
                 <strong>Admin</strong>
                 <span>Pharmacy Manager</span>
             </div>
-            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;"><i data-lucide="log-out"></i></span>
         </div>
     </aside>
 
@@ -55,7 +93,7 @@
                 <p>Shape your workspace and find answers when you need them.</p>
             </div>
             <div class="topbar-right">
-                <button class="notification" aria-label="Notifications">🔔<span class="notification-dot"></span></button>
+                <button class="notification"><i data-lucide="bell"></i><span class="notification-dot"></span></button>
             </div>
         </header>
 

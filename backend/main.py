@@ -22,6 +22,11 @@ import os
 import json
 import secrets
 import time
+import logging
+from urllib.request import Request as UrlRequest, urlopen
+from urllib.error import URLError, HTTPError
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -157,27 +162,74 @@ class UpdateMedicineDetailsRequest(BaseModel):
     units_per_strip: int = 1
     price_basis: str = "unit"
 
+class AskRequest(BaseModel):
+    question: str
+    history: list[dict] = []
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "")
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").lower()
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+
+def generate_with_ollama(context: str):
+    payload = json.dumps({
+        "model": OLLAMA_MODEL,
+        "prompt": context,
+        "stream": False,
+        "options": {"num_ctx": OLLAMA_NUM_CTX}
+    }).encode("utf-8")
+    request = UrlRequest(
+        f"{OLLAMA_BASE_URL}/api/generate",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    try:
+        with urlopen(request, timeout=180) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Ollama returned HTTP {error.code}: {detail}") from error
+    except URLError as error:
+        raise RuntimeError(
+            f"Cannot connect to Ollama at {OLLAMA_BASE_URL}. Start Ollama and try again."
+        ) from error
+
+    answer = result.get("response", "").strip()
+    if not answer:
+        raise RuntimeError("Ollama returned an empty response.")
+    return answer
 
 class AskRequest(BaseModel):
     question: str
+    history: list[dict] = []
+
 
 @app.get("/medicines")
 def get_medicines(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     medicines = db.query(Medicine).order_by(Medicine.name).all()
+    batches = db.query(InventoryBatch).order_by(InventoryBatch.expiry_date).all()
+    sales_counts = dict(
+        db.query(SaleHistory.medicine_id, func.count(SaleHistory.sale_id))
+        .group_by(SaleHistory.medicine_id)
+        .all()
+    )
+    returns_counts = dict(
+        db.query(Return.medicine_id, func.count(Return.return_id))
+        .group_by(Return.medicine_id)
+        .all()
+    )
+    batches_by_medicine = {}
+    for batch in batches:
+        batches_by_medicine.setdefault(batch.medicine_id, []).append(batch)
+
     output = []
     for medicine in medicines:
-        batches = db.query(InventoryBatch).filter(
-            InventoryBatch.medicine_id == medicine.medicine_id
-        ).order_by(InventoryBatch.expiry_date).all()
-        sales_count = db.query(SaleHistory).filter(
-            SaleHistory.medicine_id == medicine.medicine_id
-        ).count()
-        returns_count = db.query(Return).filter(
-            Return.medicine_id == medicine.medicine_id
-        ).count()
+        medicine_batches = batches_by_medicine.get(medicine.medicine_id, [])
         output.append({
             "medicine_id": medicine.medicine_id,
             "name": medicine.name,
@@ -189,10 +241,10 @@ def get_medicines(db: Session = Depends(get_db), _: int = Depends(require_admin)
             "price_basis": medicine.price_basis,
             "reorder_level": medicine.reorder_level,
             "is_active": medicine.is_active,
-            "total_stock": sum(batch.quantity for batch in batches),
-            "batch_count": len(batches),
-            "sales_count": sales_count,
-            "returns_count": returns_count,
+            "total_stock": sum(batch.quantity for batch in medicine_batches),
+            "batch_count": len(medicine_batches),
+            "sales_count": sales_counts.get(medicine.medicine_id, 0),
+            "returns_count": returns_counts.get(medicine.medicine_id, 0),
             "batches": [
                 {
                     "batch_id": batch.batch_id,
@@ -201,7 +253,7 @@ def get_medicines(db: Session = Depends(get_db), _: int = Depends(require_admin)
                     "manufacture_date": batch.manufacture_date.isoformat(),
                     "expiry_date": batch.expiry_date.isoformat()
                 }
-                for batch in batches
+                for batch in medicine_batches
             ]
         })
     return output
@@ -818,6 +870,546 @@ def get_stock_requirement(db: Session = Depends(get_db)):
     output.sort(key=lambda x: (x["days_of_stock_left"] is None, x["days_of_stock_left"]))
     return output
 
+def get_budget_from_question(question: str):
+    match = re.search(
+        r"(?:budget|under|within|spend|amount)\D{0,20}(?:₹|rs\.?|inr\s*)?\s*([\d,]+)",
+        question.lower()
+    )
+    if not match:
+        return None
+    return float(match.group(1).replace(",", ""))
+
+def build_budget_reorder_answer(question: str, requirements: list[dict]):
+    budget = get_budget_from_question(question)
+    if budget is None:
+        return None
+
+    selected = []
+    spent = 0.0
+    for item in requirements:
+        item_cost = float(item["estimated_cost"])
+        if item_cost <= 0 or spent + item_cost > budget:
+            continue
+        selected.append(item)
+        spent += item_cost
+
+    remaining = round(budget - spent, 2)
+    if not selected:
+        return (
+            f"No complete urgent reorder item fits within a budget of ₹{budget:,.2f}. "
+            "Increase the budget or review the suggested quantities."
+        )
+
+    lines = [f"Urgent reorder plan within ₹{budget:,.2f}:"]
+    for index, item in enumerate(selected, start=1):
+        days_left = (
+            f"{item['days_of_stock_left']} days left"
+            if item["days_of_stock_left"] is not None
+            else "stockout risk"
+        )
+        lines.append(
+            f"{index}. {item['name']} — order {item['suggested_order_qty']} {item['unit']} "
+            f"({item['estimated_cost']:,.2f}); {days_left}."
+        )
+    lines.append(f"Total: ₹{spent:,.2f} | Remaining budget: ₹{remaining:,.2f}")
+    return "\n".join(lines)
+
+def build_total_reorder_cost_answer(question: str, requirements: list[dict]):
+    normalized_question = question.lower()
+    asks_for_total = "total" in normalized_question and (
+        "cost" in normalized_question or "price" in normalized_question or "amount" in normalized_question
+    )
+    asks_for_reorder = "reorder" in normalized_question or "required medicine" in normalized_question
+    if not asks_for_total or not asks_for_reorder:
+        return None
+
+    total_cost = round(sum(float(item["estimated_cost"]) for item in requirements), 2)
+    total_items = len(requirements)
+    total_units = sum(int(item["suggested_order_qty"]) for item in requirements)
+    return (
+        f"The total estimated cost to reorder all {total_items} required medicines is "
+        f"₹{total_cost:,.2f} for {total_units:,} units."
+    )
+
+def build_expiring_medicines_answer(question: str, db: Session):
+    normalized_question = question.lower()
+    asks_about_expiry = "expir" in normalized_question or "expiry" in normalized_question
+    asks_about_three_months = (
+        "3 month" in normalized_question
+        or "three month" in normalized_question
+        or "next quarter" in normalized_question
+        or "90 day" in normalized_question
+    )
+    if not asks_about_expiry or not asks_about_three_months:
+        return None
+
+    today = date.today()
+    expiry_limit = today + timedelta(days=90)
+    results = db.query(
+        Medicine.name,
+        InventoryBatch.batch_number,
+        InventoryBatch.quantity,
+        InventoryBatch.expiry_date,
+        Medicine.unit
+    ).join(
+        Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
+    ).filter(
+        Medicine.is_active.is_(True),
+        InventoryBatch.quantity > 0,
+        InventoryBatch.expiry_date >= today,
+        InventoryBatch.expiry_date <= expiry_limit
+    ).order_by(InventoryBatch.expiry_date).all()
+
+    if not results:
+        return "No active medicine with remaining stock is scheduled to expire in the next 3 months."
+
+    lines = [f"Medicines expiring in the next 3 months ({today.isoformat()} to {expiry_limit.isoformat()}):"]
+    for index, item in enumerate(results, start=1):
+        days_left = (item.expiry_date - today).days
+        lines.append(
+            f"{index}. {item.name} — batch {item.batch_number}, {item.quantity} {item.unit}, "
+            f"expires {item.expiry_date.isoformat()} ({days_left} days left)."
+        )
+    lines.append(f"Total batches: {len(results)}")
+    return "\n".join(lines)
+
+def build_sales_returns_answer(question: str, db: Session):
+    normalized_question = question.lower()
+    asks_about_sales = "sale" in normalized_question or "sales" in normalized_question
+    asks_about_returns = "return" in normalized_question or "returns" in normalized_question
+    if not (asks_about_sales and asks_about_returns):
+        return None
+
+    sales = db.query(SaleHistory, Medicine.name).join(
+        Medicine, Medicine.medicine_id == SaleHistory.medicine_id
+    ).order_by(SaleHistory.sale_date.desc()).all()
+    returns = db.query(Return, Medicine.name).join(
+        Medicine, Medicine.medicine_id == Return.medicine_id
+    ).order_by(Return.return_date.desc()).all()
+
+    sold_units = sum(int(sale.quantity_sold or 0) for sale, _ in sales)
+    sales_revenue = round(sum(float(sale.total_amount or 0) for sale, _ in sales), 2)
+    returned_units = sum(int(item.quantity or 0) for item, _ in returns)
+    customer_units = sum(int(item.quantity or 0) for item, _ in returns if item.return_type == "customer")
+    supplier_units = sum(int(item.quantity or 0) for item, _ in returns if item.return_type == "supplier")
+
+    lines = [
+        "Complete sales and returns summary:",
+        f"Sales: {len(sales)} transactions, {sold_units:,} units sold, revenue ₹{sales_revenue:,.2f}.",
+        f"Returns: {len(returns)} transactions, {returned_units:,} units returned "
+        f"(customer: {customer_units:,}, supplier: {supplier_units:,})."
+    ]
+
+    if sales:
+        lines.append("Sales details:")
+        for sale, medicine_name in sales:
+            lines.append(
+                f"- {sale.sale_date.isoformat()} — {medicine_name}, {sale.quantity_sold} units, "
+                f"₹{float(sale.total_amount or 0):,.2f}."
+            )
+    else:
+        lines.append("Sales details: no sales recorded.")
+
+    if returns:
+        lines.append("Returns details:")
+        for item, medicine_name in returns:
+            reason = f", reason: {item.reason}" if item.reason else ""
+            lines.append(
+                f"- {item.return_date.isoformat()} — {medicine_name}, {item.quantity} units, "
+                f"{item.return_type} return{reason}."
+            )
+    else:
+        lines.append("Returns details: no returns recorded.")
+
+    return "\n".join(lines)
+
+def build_low_stock_answer(question: str, db: Session):
+    normalized_question = question.lower()
+    asks_about_low_stock = "low stock" in normalized_question or "below reorder" in normalized_question
+    asks_for_reorder_level = "reorder level" in normalized_question or "reorder" in normalized_question
+    if not asks_about_low_stock or not asks_for_reorder_level:
+        return None
+
+    stock_by_medicine = db.query(
+        InventoryBatch.medicine_id,
+        func.coalesce(func.sum(InventoryBatch.quantity), 0).label("current_stock")
+    ).group_by(InventoryBatch.medicine_id).subquery()
+    results = db.query(
+        Medicine.name,
+        Medicine.category,
+        Medicine.reorder_level,
+        Medicine.unit,
+        func.coalesce(stock_by_medicine.c.current_stock, 0).label("current_stock")
+    ).outerjoin(
+        stock_by_medicine, Medicine.medicine_id == stock_by_medicine.c.medicine_id
+    ).filter(
+        Medicine.is_active.is_(True),
+        func.coalesce(stock_by_medicine.c.current_stock, 0) < Medicine.reorder_level
+    ).order_by(Medicine.name).all()
+
+    if not results:
+        return "No active medicines are currently below their reorder levels."
+
+    lines = ["Medicines with low stock:"]
+    for index, item in enumerate(results, start=1):
+        lines.append(
+            f"{index}. {item.name} — current stock: {int(item.current_stock)} {item.unit}; "
+            f"reorder level: {item.reorder_level} {item.unit}."
+        )
+    lines.append(f"Total medicines needing reorder: {len(results)}")
+    return "\n".join(lines)
+
+def get_generic_name(full_name: str) -> str:
+    return full_name.split()[0].lower() if full_name else ""
+
+def find_medicines_by_generic(text: str, medicines: list[Medicine]) -> list[Medicine]:
+    normalized = text.lower()
+    matched = []
+    for medicine in medicines:
+        generic = get_generic_name(medicine.name)
+        if generic and generic in normalized:
+            matched.append(medicine)
+    return matched
+
+def build_extended_answers(question: str, db: Session, history: list[dict] | None = None):
+    normalized_question = question.lower()
+    today = date.today()
+
+    medicines = db.query(Medicine).filter(Medicine.is_active.is_(True)).all()
+
+    # ---- Exact full-name match runs first (handles distinct products
+    # named identically to a generic, e.g. "Test Medicine") ----
+    for medicine in medicines:
+        if medicine.name.lower() in normalized_question:
+            asks_price = "price" in normalized_question or "cost" in normalized_question
+            asks_stock = (
+                "stock" in normalized_question
+                or "how much" in normalized_question
+                or "how many" in normalized_question
+            )
+            if asks_price and "reorder" not in normalized_question:
+                return f"{medicine.name} is priced at ₹{float(medicine.unit_price):,.2f} per {medicine.unit}."
+            if asks_stock:
+                current_stock = db.query(
+                    func.coalesce(func.sum(InventoryBatch.quantity), 0)
+                ).filter(InventoryBatch.medicine_id == medicine.medicine_id).scalar()
+                return f"{medicine.name} currently has {int(current_stock)} {medicine.unit} in stock."
+
+    # ---- Generic/ingredient-name match, with follow-up resolution via history ----
+    matched = find_medicines_by_generic(normalized_question, medicines)
+    print(f"[DEBUG] matched from current question: {[m.name for m in matched]}")
+    if not matched and history:
+        for turn in reversed(history[-4:]):
+            prior_matched = find_medicines_by_generic(turn.get("question", "").lower(), medicines)
+            if prior_matched:
+                matched = prior_matched
+                break
+
+    if matched:
+        asks_price = any(w in normalized_question for w in ("price", "cost", "worth", "value")) and "reorder" not in normalized_question
+        asks_stock = any(w in normalized_question for w in ("stock", "how much", "how many", "quantity", "left"))
+        asks_manufacturer = any(w in normalized_question for w in ("manufacturer", "made by", "who makes", "company", "brand"))
+        asks_category = "category" in normalized_question or "type of medicine" in normalized_question
+        asks_reorder_level = (
+            ("reorder level" in normalized_question or "reorder point" in normalized_question)
+            or ("needs reorder" in normalized_question or "need reorder" in normalized_question)
+        )
+        asks_batches = "batch" in normalized_question
+        asks_units_sold = any(w in normalized_question for w in ("sold", "units sold","sales" ,"how many sales"))
+        asks_days_left = any(w in normalized_question for w in ("run out", "last how long", "days left", "how long will"))
+        asks_active_status = any(w in normalized_question for w in ("active", "discontinued", "archived"))
+        asks_expiry = any(w in normalized_question for w in ("expir", "soonest", "expire"))
+
+        if asks_manufacturer:
+            if len(matched) == 1:
+                m = matched[0]
+                return f"{m.name} is manufactured by {m.manufacturer}."
+            lines = [f"Manufacturers for {matched[0].name.split()[0]} products:"]
+            for m in matched:
+                lines.append(f"- {m.name}: {m.manufacturer}")
+            return "\n".join(lines)
+
+        if asks_category:
+            if len(matched) == 1:
+                m = matched[0]
+                return f"{m.name} falls under the {m.category} category."
+            lines = [f"Categories for {matched[0].name.split()[0]} products:"]
+            for m in matched:
+                lines.append(f"- {m.name}: {m.category}")
+            return "\n".join(lines)
+
+        if asks_reorder_level:
+            lines = []
+            for m in matched:
+                current_stock = db.query(
+                    func.coalesce(func.sum(InventoryBatch.quantity), 0)
+                ).filter(InventoryBatch.medicine_id == m.medicine_id).scalar()
+                status = "needs reordering" if current_stock < m.reorder_level else "is above its reorder level"
+                lines.append(f"- {m.name}: reorder level {m.reorder_level} {m.unit}, current stock {int(current_stock)} {m.unit} — {status}.")
+            return "\n".join(lines)
+
+        if asks_batches:
+            lines = []
+            for m in matched:
+                batches = db.query(InventoryBatch).filter(
+                    InventoryBatch.medicine_id == m.medicine_id
+                ).order_by(InventoryBatch.expiry_date).all()
+                if not batches:
+                    lines.append(f"{m.name} has no recorded batches.")
+                    continue
+                lines.append(f"{m.name} batches:")
+                for b in batches:
+                    lines.append(f"  - {b.batch_number}: {b.quantity} {m.unit}, expires {b.expiry_date.isoformat()}")
+            return "\n".join(lines)
+
+        if asks_units_sold:
+            lines = []
+            for m in matched:
+                total_sold = db.query(
+                    func.coalesce(func.sum(SaleHistory.quantity_sold), 0)
+                ).filter(SaleHistory.medicine_id == m.medicine_id).scalar()
+                revenue = db.query(
+                    func.coalesce(func.sum(SaleHistory.total_amount), 0)
+                ).filter(SaleHistory.medicine_id == m.medicine_id).scalar()
+                lines.append(f"- {m.name}: {int(total_sold)} units sold, ₹{float(revenue):,.2f} revenue.")
+            return "\n".join(lines)
+
+        if asks_days_left:
+            lines = []
+            cutoff = today - timedelta(days=90)
+            for m in matched:
+                current_stock = db.query(
+                    func.coalesce(func.sum(InventoryBatch.quantity), 0)
+                ).filter(
+                    InventoryBatch.medicine_id == m.medicine_id,
+                    InventoryBatch.expiry_date >= today
+                ).scalar()
+                total_sold = db.query(
+                    func.coalesce(func.sum(SaleHistory.quantity_sold), 0)
+                ).filter(
+                    SaleHistory.medicine_id == m.medicine_id,
+                    SaleHistory.sale_date >= cutoff
+                ).scalar()
+                avg_daily = total_sold / 90
+                if avg_daily > 0:
+                    days_left = round(current_stock / avg_daily, 1)
+                    lines.append(f"- {m.name}: about {days_left} days of stock left at current sales pace.")
+                else:
+                    lines.append(f"- {m.name}: no recent sales, so a run-out estimate isn't possible.")
+            return "\n".join(lines)
+
+        if asks_active_status:
+            lines = [f"- {m.name}: {'active' if m.is_active else 'archived/discontinued'}" for m in matched]
+            return "\n".join(lines)
+
+        if asks_expiry:
+            lines = []
+            for m in matched:
+                next_batch = db.query(InventoryBatch).filter(
+                    InventoryBatch.medicine_id == m.medicine_id,
+                    InventoryBatch.quantity > 0,
+                    InventoryBatch.expiry_date >= today
+                ).order_by(InventoryBatch.expiry_date).first()
+
+                if next_batch:
+                    days_left = (next_batch.expiry_date - today).days
+                    lines.append(
+                        f"- {m.name}: soonest expiring batch is {next_batch.batch_number}, "
+                        f"expiring {next_batch.expiry_date.isoformat()} ({days_left} days left)."
+                    )
+                else:
+                    lines.append(f"- {m.name}: no active (non-expired, in-stock) batches found.")
+            return "\n".join(lines)
+
+        if asks_price:
+            if len(matched) == 1:
+                m = matched[0]
+                return f"{m.name} is priced at ₹{float(m.unit_price):,.2f} per {m.unit}."
+            lines = [f"Prices for {matched[0].name.split()[0]} products:"]
+            for m in matched:
+                lines.append(f"- {m.name}: ₹{float(m.unit_price):,.2f} per {m.unit}")
+            return "\n".join(lines)
+
+        if asks_stock:
+            total = 0
+            lines = []
+            for m in matched:
+                stock = db.query(func.coalesce(func.sum(InventoryBatch.quantity), 0)).filter(
+                    InventoryBatch.medicine_id == m.medicine_id
+                ).scalar()
+                total += int(stock)
+                lines.append(f"- {m.name}: {int(stock)} {m.unit}")
+            if len(matched) == 1:
+                return f"{matched[0].name} currently has {total} {matched[0].unit} in stock."
+            header = f"Total quantity across {matched[0].name.split()[0]} products: {total} units."
+            return "\n".join([header] + lines)
+
+    # ---- everything below this line is the rest of your existing function
+    # (revenue, best seller, slow mover, returns counts, etc.) — unchanged ----
+
+    # ---- Revenue & sales ----
+    asks_total_revenue = "total revenue" in normalized_question or "how much revenue" in normalized_question
+    if asks_total_revenue:
+        total = db.query(func.coalesce(func.sum(SaleHistory.total_amount), 0)).scalar()
+        return f"Total revenue from all recorded sales: ₹{float(total):,.2f}."
+
+    asks_best_seller = any(
+        phrase in normalized_question for phrase in ("best selling", "best-selling", "top seller", "most sold")
+    )
+    if asks_best_seller:
+        result = db.query(
+            Medicine.name, func.sum(SaleHistory.quantity_sold).label("total_sold")
+        ).join(
+            Medicine, Medicine.medicine_id == SaleHistory.medicine_id
+        ).filter(Medicine.is_active.is_(True)
+        ).group_by(Medicine.name).order_by(func.sum(SaleHistory.quantity_sold).desc()).first()
+        if result:
+            return f"The best-selling medicine is {result.name}, with {result.total_sold} units sold in total."
+        return "No sales recorded yet."
+
+    asks_slow_mover = any(
+        phrase in normalized_question for phrase in ("slow moving", "least sold", "worst selling")
+    )
+    if asks_slow_mover:
+        result = db.query(
+            Medicine.name, func.sum(SaleHistory.quantity_sold).label("total_sold")
+        ).join(
+            Medicine, Medicine.medicine_id == SaleHistory.medicine_id
+        ).filter(Medicine.is_active.is_(True)
+        ).group_by(Medicine.name).order_by(func.sum(SaleHistory.quantity_sold).asc()).first()
+        if result:
+            return f"The slowest-moving medicine is {result.name}, with only {result.total_sold} units sold."
+        return "No sales recorded yet."
+
+    asks_average_sale = "average sale" in normalized_question or "average revenue" in normalized_question
+    if asks_average_sale:
+        avg_amount = db.query(func.coalesce(func.avg(SaleHistory.total_amount), 0)).scalar()
+        return f"The average sale value is ₹{float(avg_amount):,.2f}."
+
+    asks_sales_count = (
+        ("how many sales" in normalized_question or "total sales" in normalized_question or "number of sales" in normalized_question)
+        and "return" not in normalized_question
+    )
+    if asks_sales_count:
+        count = db.query(SaleHistory).count()
+        return f"There have been {count} sales recorded in total."
+
+    # ---- Returns ----
+    asks_customer_return_count = "customer return" in normalized_question and any(
+        phrase in normalized_question for phrase in ("how many", "total", "number")
+    )
+    if asks_customer_return_count:
+        total = db.query(
+            func.coalesce(func.sum(Return.quantity), 0)
+        ).filter(Return.return_type == "customer").scalar()
+        return f"A total of {int(total)} units have been returned by customers."
+
+    asks_supplier_return_count = "supplier return" in normalized_question and any(
+        phrase in normalized_question for phrase in ("how many", "total", "number")
+    )
+    if asks_supplier_return_count:
+        total = db.query(
+            func.coalesce(func.sum(Return.quantity), 0)
+        ).filter(Return.return_type == "supplier").scalar()
+        return f"A total of {int(total)} units have been returned to suppliers."
+
+    # ---- Inventory totals ----
+    asks_medicine_count = any(
+        phrase in normalized_question for phrase in ("how many medicines", "total medicines", "number of medicines")
+    )
+    if asks_medicine_count:
+        count = db.query(Medicine).filter(Medicine.is_active.is_(True)).count()
+        return f"There are currently {count} active medicines in the system."
+
+    asks_total_stock = (
+        ("total stock" in normalized_question or "how much stock" in normalized_question)
+        and "medicine" not in normalized_question
+    )
+    if asks_total_stock:
+        total = db.query(
+            func.coalesce(func.sum(InventoryBatch.quantity), 0)
+        ).join(Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
+        ).filter(Medicine.is_active.is_(True)).scalar()
+        return f"Total stock across all active medicines: {int(total):,} units."
+
+    asks_out_of_stock_list = "out of stock" in normalized_question and any(
+        phrase in normalized_question for phrase in ("how many", "which", "list")
+    )
+    if asks_out_of_stock_list:
+        stock_by_medicine = db.query(
+            InventoryBatch.medicine_id,
+            func.coalesce(func.sum(InventoryBatch.quantity), 0).label("stock")
+        ).group_by(InventoryBatch.medicine_id).subquery()
+        results = db.query(Medicine.name).join(
+            stock_by_medicine, Medicine.medicine_id == stock_by_medicine.c.medicine_id
+        ).filter(
+            stock_by_medicine.c.stock == 0, Medicine.is_active.is_(True)
+        ).order_by(Medicine.name).all()
+
+        if not results:
+            return "No active medicines are currently out of stock."
+
+        lines = ["Medicines out of stock:"]
+        for index, item in enumerate(results, start=1):
+            lines.append(f"{index}. {item.name}")
+        lines.append(f"Total out of stock: {len(results)}")
+        return "\n".join(lines)
+
+    asks_highest_stock = "highest stock" in normalized_question or "most stock" in normalized_question
+    if asks_highest_stock:
+        result = db.query(
+            Medicine.name, func.sum(InventoryBatch.quantity).label("stock")
+        ).join(
+            InventoryBatch, InventoryBatch.medicine_id == Medicine.medicine_id
+        ).filter(Medicine.is_active.is_(True)
+        ).group_by(Medicine.name).order_by(func.sum(InventoryBatch.quantity).desc()).first()
+        if result:
+            return f"{result.name} has the highest stock, with {result.stock} units."
+
+    # ---- Running out / expiry ----
+    asks_running_out_first = any(
+        phrase in normalized_question for phrase in ("run out", "running out")
+    ) and any(
+        phrase in normalized_question for phrase in ("first", "soonest", "which medicine")
+    )
+    if asks_running_out_first:
+        insights = get_ai_insights(db)
+        if insights["running_out_names"]:
+            return f"{insights['running_out_names'][0]} is the medicine most likely to run out first."
+        return "No medicines are currently projected to run out soon."
+
+    asks_expiring_this_week = "expir" in normalized_question and "this week" in normalized_question
+    if asks_expiring_this_week:
+        limit = today + timedelta(days=7)
+        count = db.query(InventoryBatch).join(
+            Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
+        ).filter(
+            Medicine.is_active.is_(True),
+            InventoryBatch.expiry_date >= today,
+            InventoryBatch.expiry_date <= limit,
+            InventoryBatch.quantity > 0
+        ).count()
+        return f"{count} batch(es) are expiring within the next 7 days."
+
+    asks_healthy_percentage = "healthy" in normalized_question and any(
+        phrase in normalized_question for phrase in ("percentage", "%", "stock level")
+    )
+    if asks_healthy_percentage:
+        insights = get_ai_insights(db)
+        return f"{insights['healthy_percentage']}% of current stock is in a healthy state."
+
+    # ---- Category breakdown ----
+    asks_top_category = "most medicines" in normalized_question and "category" in normalized_question
+    if asks_top_category:
+        result = db.query(
+            Medicine.category, func.count(Medicine.medicine_id).label("count")
+        ).filter(Medicine.is_active.is_(True)
+        ).group_by(Medicine.category).order_by(func.count(Medicine.medicine_id).desc()).first()
+        if result:
+            return f"{result.category} has the most medicines, with {result.count} distinct items."
+
+    return None  # nothing matched — falls through to Gemini
+
 @app.get("/ai/insights")
 def get_ai_insights(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     today = date.today()
@@ -889,105 +1481,190 @@ def get_ai_insights(db: Session = Depends(get_db), _: int = Depends(require_admi
 
 @app.post("/ai/ask")
 def ask_ai(data: AskRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    insights = get_ai_insights(db)
     requirement_data = get_stock_requirement(db)
-    low_stock_data = get_low_stock(db)
+    sales_returns_answer = build_sales_returns_answer(data.question, db)
+    if sales_returns_answer:
+        return {"answer": sales_returns_answer}
 
-    medicines = db.query(Medicine).order_by(Medicine.name).all()
-    inventory_data = []
-    for medicine in medicines:
-        batches = db.query(InventoryBatch).filter(
-            InventoryBatch.medicine_id == medicine.medicine_id
-        ).order_by(InventoryBatch.expiry_date).all()
-        inventory_data.append({
-            "medicine_id": medicine.medicine_id,
-            "name": medicine.name,
-            "category": medicine.category,
-            "manufacturer": medicine.manufacturer,
-            "unit": medicine.unit,
-            "unit_price": float(medicine.unit_price),
-            "reorder_level": medicine.reorder_level,
-            "is_active": medicine.is_active,
-            "batches": [
-                {
-                    "batch_id": batch.batch_id,
-                    "batch_number": batch.batch_number,
-                    "quantity": batch.quantity,
-                    "manufacture_date": batch.manufacture_date.isoformat(),
-                    "expiry_date": batch.expiry_date.isoformat()
-                }
-                for batch in batches
-            ]
-        })
+    low_stock_answer = build_low_stock_answer(data.question, db)
+    if low_stock_answer:
+        return {"answer": low_stock_answer}
 
-    sales_data = [
-        {
-            "sale_id": sale.sale_id,
-            "medicine_id": sale.medicine_id,
-            "batch_id": sale.batch_id,
-            "quantity_sold": sale.quantity_sold,
-            "sale_date": sale.sale_date.isoformat(),
-            "unit_price": float(sale.unit_price),
-            "total_amount": float(sale.total_amount)
-        }
-        for sale in db.query(SaleHistory).order_by(SaleHistory.sale_date.desc()).all()
+    expiring_answer = build_expiring_medicines_answer(data.question, db)
+    if expiring_answer:
+        return {"answer": expiring_answer}
+
+    local_answer = build_total_reorder_cost_answer(data.question, requirement_data)
+    if local_answer:
+        return {"answer": local_answer}
+
+    budget_answer = build_budget_reorder_answer(data.question, requirement_data)
+    if budget_answer:
+        return {"answer": budget_answer}
+
+    extended_answer = build_extended_answers(data.question, db, data.history)
+    if extended_answer:
+        return {"answer": extended_answer}
+
+    normalized_question = data.question.lower()
+
+# Combine current question with the last question in history so a bare
+# follow-up ("and their price", "which?") inherits domain keywords
+# from what was actually being discussed.
+    determination_text = normalized_question
+    if data.history:
+        determination_text = data.history[-1].get("question", "").lower() + " " + normalized_question
+
+    wants_inventory = any(word in determination_text for word in ("stock", "medicine", "batch", "inventory", "price", "cost"))
+    wants_sales = "sale" in determination_text or "revenue" in determination_text
+    wants_returns = "return" in determination_text
+    wants_expiry = "expir" in determination_text or "expiry" in determination_text
+    wants_insights = any(word in determination_text for word in ("running out", "healthy", "insight", "trend"))
+
+# Only fall back to "send everything" if there's truly no history AND no keywords at all
+    if not any((wants_inventory, wants_sales, wants_returns, wants_expiry, wants_insights)) and not data.history:
+        wants_inventory = True
+        wants_insights = True
+
+    sections = [
+        "You are an assistant inside Medistock, a pharmacy inventory system.",
+        "Answer using ONLY the supplied data. Be concise, practical, and use the same language as the question.",
+        "If the question contains words like 'it', 'their', 'each', 'the same', or otherwise reads as a follow-up, "
+        "resolve what it refers to using RECENT CONVERSATION below — do not answer about the entire dataset "
+        "unless the question or the conversation clearly asks for everything.",
+        "When resolving a follow-up question (e.g. containing 'their', 'it', 'the same', 'which'), "
+        "only use the entity discussed in RECENT CONVERSATION — never substitute a different list "
+        "of medicines from other data sections just because it's shorter or more specific."
+
     ]
-    returns_data = [
-        {
-            "return_id": item.return_id,
-            "medicine_id": item.medicine_id,
-            "batch_id": item.batch_id,
-            "quantity": item.quantity,
-            "return_type": item.return_type,
-            "reason": item.reason,
-            "return_date": item.return_date.isoformat()
-        }
-        for item in db.query(Return).order_by(Return.return_date.desc()).all()
-    ]
 
-    context = f"""You are an assistant inside Medistock, a pharmacy inventory system.
-Answer the pharmacy administrator's question using ONLY the complete data below.
-Use every relevant record available. Do not say that details are unavailable when they exist in the data.
-Show full information requested by the administrator, including all matching medicine names, batches, quantities, dates, sales, returns, and costs.
-Do not arbitrarily limit lists to a few items. Be clear and practical, and respond in the SAME language as the question.
 
-CURRENT SUMMARY:
-{json.dumps(insights, ensure_ascii=False)}
+    if wants_inventory:
+        inventory_data = []
+        medicines = db.query(Medicine).filter(Medicine.is_active.is_(True)).order_by(Medicine.name).all()
+        for medicine in medicines:
+            batches = db.query(InventoryBatch).filter(
+                InventoryBatch.medicine_id == medicine.medicine_id
+            ).order_by(InventoryBatch.expiry_date).all()
+            inventory_data.append({
+                "name": medicine.name,
+                "category": medicine.category,
+                "unit": medicine.unit,
+                "unit_price": float(medicine.unit_price),
+                "reorder_level": medicine.reorder_level,
+                "batches": [
+                    {
+                        "batch_number": batch.batch_number,
+                        "quantity": batch.quantity,
+                        "expiry_date": batch.expiry_date.isoformat()
+                    }
+                    for batch in batches
+                ]
+            })
+        sections.append(f"ACTIVE INVENTORY (medicine and batch data):\n{json.dumps(inventory_data, ensure_ascii=False)}")
 
-COMPLETE MEDICINE AND BATCH DATA:
-{json.dumps(inventory_data, ensure_ascii=False)}
+    if wants_sales:
+        sales_data = [
+            {
+                "medicine": medicine_name,
+                "quantity_sold": sale.quantity_sold,
+                "sale_date": sale.sale_date.isoformat(),
+                "total_amount": float(sale.total_amount)
+            }
+            for sale, medicine_name in db.query(SaleHistory, Medicine.name).join(
+                Medicine, Medicine.medicine_id == SaleHistory.medicine_id
+            ).order_by(SaleHistory.sale_date.desc()).limit(200).all()
+        ]
+        sections.append(f"RECENT SALES (maximum 200 records):\n{json.dumps(sales_data, ensure_ascii=False)}")
 
-COMPLETE STOCK REQUIREMENT DATA:
-{json.dumps(requirement_data, ensure_ascii=False)}
+    if wants_returns:
+        returns_data = [
+            {
+                "medicine": medicine_name,
+                "quantity": item.quantity,
+                "return_type": item.return_type,
+                "reason": item.reason,
+                "return_date": item.return_date.isoformat()
+            }
+            for item, medicine_name in db.query(Return, Medicine.name).join(
+                Medicine, Medicine.medicine_id == Return.medicine_id
+            ).order_by(Return.return_date.desc()).limit(200).all()
+        ]
+        sections.append(f"RECENT RETURNS (maximum 200 records):\n{json.dumps(returns_data, ensure_ascii=False)}")
 
-COMPLETE LOW STOCK DATA:
-{json.dumps(low_stock_data, ensure_ascii=False)}
+    if wants_expiry:
+        expiry_limit = date.today() + timedelta(days=90)
+        expiring_data = [
+            {
+                "medicine": medicine_name,
+                "batch_number": batch.batch_number,
+                "quantity": batch.quantity,
+                "expiry_date": batch.expiry_date.isoformat()
+            }
+            for batch, medicine_name in db.query(InventoryBatch, Medicine.name).join(
+                Medicine, Medicine.medicine_id == InventoryBatch.medicine_id
+            ).filter(
+                Medicine.is_active.is_(True),
+                InventoryBatch.quantity > 0,
+                InventoryBatch.expiry_date >= date.today(),
+                InventoryBatch.expiry_date <= expiry_limit
+            ).order_by(InventoryBatch.expiry_date).all()
+        ]
+        sections.append(f"EXPIRING ACTIVE STOCK (next 90 days):\n{json.dumps(expiring_data, ensure_ascii=False)}")
 
-COMPLETE SALES HISTORY:
-{json.dumps(sales_data, ensure_ascii=False)}
+    if wants_insights:
+        sections.append(f"CURRENT INSIGHTS:\n{json.dumps(get_ai_insights(db), ensure_ascii=False)}")
 
-COMPLETE RETURNS HISTORY:
-{json.dumps(returns_data, ensure_ascii=False)}
+    if wants_inventory or "reorder" in normalized_question:
+        sections.append(f"STOCK REQUIREMENTS:\n{json.dumps(requirement_data, ensure_ascii=False)}")
 
-ADMIN'S QUESTION: {data.question}
-"""
+    if data.history:
+        history_lines = ["RECENT CONVERSATION (use this to resolve follow-ups like 'which?', 'their', 'each'):"]
+        for turn in data.history[-4:]:
+            history_lines.append(f"Q: {turn.get('question', '')}")
+            history_lines.append(f"A: {turn.get('answer', '')}")
+        sections.append("\n".join(history_lines))
+
+    sections.append(f"ADMIN'S CURRENT QUESTION: {data.question}")
+
+    context = "\n\n".join(sections)
+    if len(context) > 100000:
+        context = context[:100000] + "\n[Additional records omitted because the context limit was reached.]"
+    print(f"[DEBUG] AI_PROVIDER is set to: '{AI_PROVIDER}'")
+    if AI_PROVIDER == "ollama":
+        try:
+            return {"answer": generate_with_ollama(context)}
+        except Exception as error:
+            logger.exception("Ollama request failed")
+            raise HTTPException(status_code=503, detail=str(error)) from error
 
     if not gemini_client:
         raise HTTPException(status_code=503, detail="AI service is not configured. Add GEMINI_API_KEY to the environment.")
 
-    for attempt in range(2):
+    models_to_try = [GEMINI_MODEL]
+    if GEMINI_FALLBACK_MODEL and GEMINI_FALLBACK_MODEL != GEMINI_MODEL:
+        models_to_try.append(GEMINI_FALLBACK_MODEL)
+
+    for model_index, model in enumerate(models_to_try):
         try:
             response = gemini_client.models.generate_content(
-                model=GEMINI_MODEL,
+                model=model,
                 contents=context
             )
             return {"answer": response.text}
         except Exception as error:
             error_text = str(error).lower()
+            logger.exception("Gemini request failed for model %s", model)
+            is_rate_limited = "429" in error_text or "rate limit" in error_text or "quota" in error_text
             is_temporary = "503" in error_text or "unavailable" in error_text
-            if is_temporary and attempt == 0:
+            if (is_temporary or is_rate_limited) and model_index < len(models_to_try) - 1:
                 time.sleep(1.5)
                 continue
+            if is_rate_limited:
+                raise HTTPException(
+                    status_code=429,
+                    detail="The AI service quota is temporarily exhausted. Please try again later or configure a fallback model."
+                )
             if is_temporary:
                 raise HTTPException(
                     status_code=503,

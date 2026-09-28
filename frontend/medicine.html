@@ -7,30 +7,69 @@
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/medicine.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
-<body>
+<body class="app-loading">
+    <div class="app-loading-screen" aria-hidden="true">
+        <div class="skeleton-sidebar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="skeleton-main">
+            <div class="skeleton-heading"><i></i><i></i></div>
+            <div class="skeleton-stats"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+    </div>
     <aside class="sidebar">
         <div class="logo"><div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div><div><h2>MEDISTOCK</h2><span>Stock. Track. Forecast.</span></div></div>
         <nav class="navigation">
-            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
+
+            <a href="home.html" class="nav-item"><span><i data-lucide="home"></i></span>Home</a>
             <p class="menu-title">MAIN MENU</p>
-            <a href="index.html" class="nav-item"><span>▣</span>Dashboard</a>
-            <a href="stock.html" class="nav-item"><span>▤</span>Current Stock</a>
-            <a href="expiring-stock.html" class="nav-item"><span>⚠</span>Expiring Stock</a>
-            <a href="stock-requirement.html" class="nav-item"><span>◈</span>Stock Requirement</a>
+
+            <a href="index.html" class="nav-item">
+                <span><i data-lucide="layout-dashboard"></i></span>
+                Dashboard
+            </a>
+
+            <a href="stock.html" class="nav-item">
+                <span><i data-lucide="list"></i></span>
+                Current Stock
+            </a>
+
+            <a href="expiring-stock.html" class="nav-item">
+                <span><i data-lucide="alert-triangle"></i></span>
+                Expiring Stock
+            </a>
+
+            <a href="stock-requirement.html" class="nav-item">
+                <span><i data-lucide="clipboard-list"></i></span>
+                Stock Requirement
+            </a>
+
             <p class="menu-title">MANAGEMENT</p>
-            <a href="medicine.html" class="nav-item active"><span>▥</span>Medicines</a>
-            <a href="analytics.html" class="nav-item"><span>↗</span>Sales Analytics</a>
-            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
-            <a href="settings.html" class="nav-item"><span>⚙</span>Settings</a>
+
+            <a href="medicine.html" class="nav-item active">
+                <span><i data-lucide="pill"></i></span>
+                Medicines
+            </a>
+
+            <a href="analytics.html" class="nav-item">
+                <span><i data-lucide="trending-up"></i></span>
+                Sales Analytics
+            </a>
+
+            <a href="ai-chat.html" class="nav-item"><span><i data-lucide="sparkles"></i></span>AI Chat</a>
+            <a href="settings.html" class="nav-item">
+                <span><i data-lucide="settings"></i></span>
+                Settings
+            </a>
         </nav>
-        <div class="sidebar-bottom"><div class="admin-avatar">A</div><div class="admin-info"><strong>Admin</strong><span>Pharmacy Manager</span></div><span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span></div>
+        <div class="sidebar-bottom"><div class="admin-avatar">A</div><div class="admin-info"><strong>Admin</strong><span>Pharmacy Manager</span></div><span class="logout" onclick="logoutAdmin()" style="cursor:pointer;"><i data-lucide="log-out"></i></span>
     </aside>
 
     <main class="main-content">
         <header class="topbar">
             <div><h1>Medicines</h1><p>Manage medicine profiles and their inventory batches.</p></div>
-            <div class="topbar-right"><button class="notification">🔔<span class="notification-dot"></span></button></div>
+            <div class="topbar-right"><button class="notification"><i data-lucide="bell"></i><span class="notification-dot"></span></button></div>
         </header>
 
         <section class="medicine-intro">
@@ -39,10 +78,10 @@
         </section>
 
         <section class="stats-grid medicine-stats">
-            <div class="stat-card"><div class="stat-icon medicines-icon">💊</div><div><p>Medicine Profiles</p><h2 id="medicineCount">0</h2><small>Unique products tracked</small></div></div>
-            <div class="stat-card"><div class="stat-icon stock-icon">📦</div><div><p>Total Batches</p><h2 id="batchCount">0</h2><small>Active inventory lots</small></div></div>
-            <div class="stat-card warning-card"><div class="stat-icon warning-icon">◉</div><div><p>Total Individual Units</p><h2 id="medicineUnits">0</h2><small>Across every batch</small></div></div>
-            <div class="stat-card danger-card"><div class="stat-icon danger-icon">⌛</div><div><p>Needs Review</p><h2 id="medicineReviewCount">0</h2><small>Low or expiring stock</small></div></div>
+            <div class="stat-card"><div class="stat-icon medicines-icon"><i data-lucide="pill"></i></div><div><p>Medicine Profiles</p><h2 id="medicineCount">0</h2><small>Unique products tracked</small></div></div>
+            <div class="stat-card"><div class="stat-icon stock-icon"><i data-lucide="package"></i></div><div><p>Total Batches</p><h2 id="batchCount">0</h2><small>Active inventory lots</small></div></div>
+            <div class="stat-card warning-card"><div class="stat-icon warning-icon"><i data-lucide="circle-dot"></i></div><div><p>Total Individual Units</p><h2 id="medicineUnits">0</h2><small>Across every batch</small></div></div>
+            <div class="stat-card danger-card"><div class="stat-icon danger-icon"><i data-lucide="clock-alert"></i></div><div><p>Needs Review</p><h2 id="medicineReviewCount">0</h2><small>Low or expiring stock</small></div></div>
         </section>
 
         <section class="panel medicine-toolbar-panel">
@@ -59,3 +98,4 @@
     <script src="js/auth.js"></script><script src="js/app.js"></script>
 </body>
 </html>
+

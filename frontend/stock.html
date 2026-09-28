@@ -10,9 +10,19 @@
 
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 
-<body>
+<body class="app-loading">
+
+    <div class="app-loading-screen" aria-hidden="true">
+        <div class="skeleton-sidebar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="skeleton-main">
+            <div class="skeleton-heading"><i></i><i></i></div>
+            <div class="skeleton-stats"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+    </div>
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -29,45 +39,44 @@
 
         <nav class="navigation">
 
-            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
+            <a href="home.html" class="nav-item"><span><i data-lucide="home"></i></span>Home</a>
             <p class="menu-title">MAIN MENU</p>
 
             <a href="index.html" class="nav-item">
-                <span>▣</span>
+                <span><i data-lucide="layout-dashboard"></i></span>
                 Dashboard
             </a>
 
             <a href="stock.html" class="nav-item active">
-                <span>▤</span>
+                <span><i data-lucide="list"></i></span>
                 Current Stock
             </a>
 
             <a href="expiring-stock.html" class="nav-item">
-                <span>⚠</span>
+                <span><i data-lucide="alert-triangle"></i></span>
                 Expiring Stock
             </a>
 
             <a href="stock-requirement.html" class="nav-item">
-                <span>◈</span>
+                <span><i data-lucide="clipboard-list"></i></span>
                 Stock Requirement
             </a>
-
 
             <p class="menu-title">MANAGEMENT</p>
 
             <a href="medicine.html" class="nav-item">
-                <span>▥</span>
+                <span><i data-lucide="pill"></i></span>
                 Medicines
             </a>
 
             <a href="analytics.html" class="nav-item">
-                <span>↗</span>
+                <span><i data-lucide="trending-up"></i></span>
                 Sales Analytics
             </a>
 
-            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
+            <a href="ai-chat.html" class="nav-item"><span><i data-lucide="sparkles"></i></span>AI Chat</a>
             <a href="settings.html" class="nav-item">
-                <span>⚙</span>
+                <span><i data-lucide="settings"></i></span>
                 Settings
             </a>
 
@@ -83,7 +92,7 @@
                 <span>Pharmacy Manager</span>
             </div>
 
-            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;"><i data-lucide="log-out"></i></span>
 
         </div>
 
@@ -107,15 +116,8 @@
 
             <div class="topbar-right">
 
-                <button class="notification">
-                    🔔
-                    <span class="notification-dot"></span>
-                </button>
-
-                <div class="date">
-                    📅
-                    <span id="current-date">07 Aug 2026</span>
-                </div>
+                <button class="notification"><i data-lucide="bell"></i><span class="notification-dot"></span></button>
+                <div class="date"><i data-lucide="calendar"></i><span id="current-date">18 Aug 2026</span></div>
 <script>
     // Get the current date and force the timezone formatting to Asia/Kolkata (IST)
     const formattedDate = new Date().toLocaleDateString('en-IN', {
@@ -145,9 +147,7 @@
 
             <div class="stat-card">
 
-                <div class="stat-icon medicines-icon">
-                    💊
-                </div>
+                <div class="stat-icon medicines-icon"><i data-lucide="pill"></i></div>
 
                 <div>
                     <p>Total Medicines</p>
@@ -160,9 +160,7 @@
 
             <div class="stat-card">
 
-                <div class="stat-icon stock-icon">
-                    📦
-                </div>
+                <div class="stat-icon stock-icon"><i data-lucide="package"></i></div>
 
                 <div>
                     <p>Total Individual Units</p>
@@ -175,9 +173,7 @@
 
             <div class="stat-card warning-card">
 
-                <div class="stat-icon warning-icon">
-                    ⚠️
-                </div>
+                <div class="stat-icon warning-icon"><i data-lucide="triangle-alert"></i></div>
 
                 <div>
                     <p>Low Stock</p>
@@ -190,9 +186,7 @@
 
             <div class="stat-card danger-card">
 
-                <div class="stat-icon danger-icon">
-                    ⛔
-                </div>
+                <div class="stat-icon danger-icon"><i data-lucide="circle-x"></i></div>
 
                 <div>
                     <p>Out of Stock</p>

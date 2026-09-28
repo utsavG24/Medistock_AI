@@ -7,9 +7,19 @@
     <title>Sales Analytics - MEDISTOCK</title>
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 
-<body>
+<body class="app-loading">
+
+    <div class="app-loading-screen" aria-hidden="true">
+        <div class="skeleton-sidebar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="skeleton-main">
+            <div class="skeleton-heading"><i></i><i></i></div>
+            <div class="skeleton-stats"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+    </div>
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -24,47 +34,46 @@
 
         <nav class="navigation">
 
-            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
+            <a href="home.html" class="nav-item"><span><i data-lucide="home"></i></span>Home</a>
             <p class="menu-title">MAIN MENU</p>
 
             <a href="index.html" class="nav-item">
-                <span>▣</span>
+                <span><i data-lucide="layout-dashboard"></i></span>
                 Dashboard
             </a>
 
             <a href="stock.html" class="nav-item">
-                <span>▤</span>
+                <span><i data-lucide="list"></i></span>
                 Current Stock
             </a>
 
             <a href="expiring-stock.html" class="nav-item">
-                <span>⚠</span>
+                <span><i data-lucide="alert-triangle"></i></span>
                 Expiring Stock
             </a>
 
             <a href="stock-requirement.html" class="nav-item">
-                <span>◈</span>
+                <span><i data-lucide="clipboard-list"></i></span>
                 Stock Requirement
             </a>
 
             <p class="menu-title">MANAGEMENT</p>
 
             <a href="medicine.html" class="nav-item">
-                <span>▥</span>
+                <span><i data-lucide="pill"></i></span>
                 Medicines
             </a>
 
             <a href="analytics.html" class="nav-item active">
-                <span>↗</span>
+                <span><i data-lucide="trending-up"></i></span>
                 Sales Analytics
             </a>
 
-            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
+            <a href="ai-chat.html" class="nav-item"><span><i data-lucide="sparkles"></i></span>AI Chat</a>
             <a href="settings.html" class="nav-item">
-                <span>⚙</span>
+                <span><i data-lucide="settings"></i></span>
                 Settings
             </a>
-
         </nav>
 
         <div class="sidebar-bottom">
@@ -73,7 +82,7 @@
                 <strong>Admin</strong>
                 <span>Pharmacy Manager</span>
             </div>
-            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;"><i data-lucide="log-out"></i></span>
         </div>
 
     </aside>
@@ -88,10 +97,7 @@
                 <p>Track sales, customer returns, and supplier returns.</p>
             </div>
             <div class="topbar-right">
-                <button class="notification">
-                    🔔
-                    <span class="notification-dot"></span>
-                </button>
+                <button class="notification"><i data-lucide="bell"></i><span class="notification-dot"></span></button>
             </div>
         </header>
 
@@ -108,7 +114,7 @@
         <!-- STATS -->
         <section class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon stock-icon">💰</div>
+                <div class="stat-icon stock-icon"><i data-lucide="indian-rupee"></i></div>
                 <div>
                     <p>Gross Revenue</p>
                     <h2 id="totalRevenue">₹0</h2>
@@ -117,7 +123,7 @@
             </div>
 
             <div class="stat-card">
-                <div class="stat-icon medicines-icon">🧾</div>
+                 <div class="stat-icon medicines-icon"><i data-lucide="receipt"></i></div>
                 <div>
                     <p>Total Sales</p>
                     <h2 id="totalSales">0</h2>
@@ -126,7 +132,7 @@
             </div>
 
             <div class="stat-card warning-card">
-                <div class="stat-icon warning-icon">↩️</div>
+                <div class="stat-icon warning-icon"><i data-lucide="undo-2"></i></div>
                 <div>
                     <p>Customer Returns</p>
                     <h2 id="totalCustomerReturns">0</h2>
@@ -135,7 +141,7 @@
             </div>
 
             <div class="stat-card danger-card">
-                <div class="stat-icon danger-icon">📤</div>
+                <div class="stat-icon danger-icon"><i data-lucide="package-x"></i></div>
                 <div>
                     <p>Supplier Returns</p>
                     <h2 id="totalSupplierReturns">0</h2>

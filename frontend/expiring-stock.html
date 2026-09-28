@@ -7,9 +7,19 @@
     <title>Expiring Stock - MEDISTOCK</title>
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 
-<body>
+<body class="app-loading">
+
+    <div class="app-loading-screen" aria-hidden="true">
+        <div class="skeleton-sidebar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="skeleton-main">
+            <div class="skeleton-heading"><i></i><i></i></div>
+            <div class="skeleton-stats"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+    </div>
 
     <aside class="sidebar">
         <div class="logo">
@@ -21,31 +31,46 @@
         </div>
 
         <nav class="navigation">
-            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
+
+            <a href="home.html" class="nav-item"><span><i data-lucide="home"></i></span>Home</a>
             <p class="menu-title">MAIN MENU</p>
+
             <a href="index.html" class="nav-item">
-                <span>▣</span> Dashboard
+                <span><i data-lucide="layout-dashboard"></i></span>
+                Dashboard
             </a>
+
             <a href="stock.html" class="nav-item">
-                <span>▤</span> Current Stock
+                <span><i data-lucide="list"></i></span>
+                Current Stock
             </a>
+
             <a href="expiring-stock.html" class="nav-item active">
-                <span>⚠</span> Expiring Stock
+                <span><i data-lucide="alert-triangle"></i></span>
+                Expiring Stock
             </a>
+
             <a href="stock-requirement.html" class="nav-item">
-                <span>◈</span> Stock Requirement
+                <span><i data-lucide="clipboard-list"></i></span>
+                Stock Requirement
             </a>
 
             <p class="menu-title">MANAGEMENT</p>
+
             <a href="medicine.html" class="nav-item">
-                <span>▥</span> Medicines
+                <span><i data-lucide="pill"></i></span>
+                Medicines
             </a>
+
             <a href="analytics.html" class="nav-item">
-                <span>↗</span> Sales Analytics
+                <span><i data-lucide="trending-up"></i></span>
+                Sales Analytics
             </a>
-            <a href="ai-chat.html" class="nav-item"><span>✦</span>AI Chat</a>
+
+            <a href="ai-chat.html" class="nav-item"><span><i data-lucide="sparkles"></i></span>AI Chat</a>
             <a href="settings.html" class="nav-item">
-                <span>⚙</span> Settings
+                <span><i data-lucide="settings"></i></span>
+                Settings
             </a>
         </nav>
 
@@ -55,7 +80,7 @@
                 <strong>Admin</strong>
                 <span>Pharmacy Manager</span>
             </div>
-            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;"><i data-lucide="log-out"></i></span>
         </div>
     </aside>
 
@@ -67,10 +92,7 @@
                 <p>Batches expiring within 60 days, or already expired.</p>
             </div>
             <div class="topbar-right">
-                <button class="notification">
-                    🔔
-                    <span class="notification-dot"></span>
-                </button>
+                <button class="notification"><i data-lucide="bell"></i><span class="notification-dot"></span></button>
             </div>
         </header>
 
@@ -82,7 +104,7 @@
 
         <section class="stats-grid">
             <div class="stat-card warning-card">
-                <div class="stat-icon warning-icon">⚠️</div>
+                <div class="stat-icon warning-icon"><i data-lucide="triangle-alert"></i></div>
                 <div>
                     <p>Expiring Soon</p>
                     <h2 id="expiringSoonStat">0</h2>
@@ -91,7 +113,7 @@
             </div>
 
             <div class="stat-card danger-card">
-                <div class="stat-icon danger-icon">⏳</div>
+                <div class="stat-icon danger-icon"><i data-lucide="clock-alert"></i></div>
                 <div>
                     <p>Already Expired</p>
                     <h2 id="expiredStat">0</h2>
@@ -100,7 +122,7 @@
             </div>
 
             <div class="stat-card">
-                <div class="stat-icon stock-icon">📦</div>
+                <div class="stat-icon stock-icon"><i data-lucide="package"></i></div>
                 <div>
                     <p>Units at Risk</p>
                     <h2 id="unitsAtRiskStat">0</h2>

@@ -3,23 +3,9 @@
 // ======================================================
 
 const API_BASE = "http://127.0.0.1:8000";
+let aiChatHistory = [];  // keeps recent Q&A turns for follow-up questions like "which?"
 
-const NAV_ICONS = {
-    "⌂": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z"/></svg>',
-    "▣": '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
-    "▤": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>',
-    "⚠": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 17H3L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg>',
-    "◈": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 9-9 9-9-9 9-9Z"/><path d="M12 8v8M8 12h8"/></svg>',
-    "▥": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
-    "↗": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19 10 13l4 4 6-7"/><path d="M15 10h5v5"/></svg>',
-    "✦": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8L12 3Z"/></svg>',
-    "⚙": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg>'
-};
 
-document.querySelectorAll(".nav-item > span").forEach(icon => {
-    const svg = NAV_ICONS[icon.textContent.trim()];
-    if (svg) icon.innerHTML = svg;
-});
 
 if (localStorage.getItem("medistock-theme") === "dark") {
     document.documentElement.classList.add("dark-mode");
@@ -28,31 +14,71 @@ if (localStorage.getItem("medistock-theme") === "dark") {
 document.addEventListener("DOMContentLoaded", async function () {
     const admin = await requireLogin();
     if (!admin) return;
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+    try {
+        console.log("Medistock frontend loaded");
+        initSidebarToggle();
+        initNotifications();
+        initStatCardReveal();
 
-    console.log("Medistock frontend loaded");
-    initSidebarToggle();
-    initNotifications();
+        const currentPage = window.location.pathname;
 
-    const currentPage = window.location.pathname;
-
-    if (currentPage.includes("ai-chat.html")) {
-    await loadAIChatPage();
-} else if (currentPage.includes("stock-requirement.html")) {
-    await loadRequirementPage();
-} else if (currentPage.includes("expiring-stock.html")) {
-    await loadExpiringPage();
-} else if (currentPage.includes("stock.html")) {
-    await loadStockPage();
-} else if (currentPage.includes("analytics.html")) {
-    await loadAnalyticsPage();
-} else if (currentPage.includes("settings.html")) {
-    loadSettingsPage();
-} else if (currentPage.includes("medicine.html")) {
-    await loadMedicinePage();
-} else {
-    await loadDashboard();
-}
+        if (currentPage.includes("ai-chat.html")) {
+            await loadAIChatPage();
+        } else if (currentPage.includes("stock-requirement.html")) {
+            await loadRequirementPage();
+        } else if (currentPage.includes("expiring-stock.html")) {
+            await loadExpiringPage();
+        } else if (currentPage.includes("stock.html")) {
+            await loadStockPage();
+        } else if (currentPage.includes("analytics.html")) {
+            await loadAnalyticsPage();
+        } else if (currentPage.includes("settings.html")) {
+            loadSettingsPage();
+        } else if (currentPage.includes("medicine.html")) {
+            await loadMedicinePage();
+        } else {
+            await loadDashboard();
+        }
+    } finally {
+        document.body.classList.add("page-ready");
+        document.body.classList.remove("app-loading");
+        const loadingScreen = document.querySelector(".app-loading-screen");
+        if (loadingScreen) {
+            loadingScreen.addEventListener("transitionend", () => loadingScreen.remove(), { once: true });
+        }
+    }
 });
+
+
+
+function initStatCardReveal() {
+    const cards = document.querySelectorAll(".stat-card");
+    if (!cards.length) return;
+
+    cards.forEach((card, index) => {
+        card.classList.add("fade-in");
+        card.style.transitionDelay = `${index * 0.08}s`;
+    });
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) {
+        cards.forEach(card => card.classList.add("visible"));
+        return;
+    }
+
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add("visible");
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.15 });
+
+    cards.forEach(card => observer.observe(card));
+}
 
 // ======================================================
 // DASHBOARD (index.html)
@@ -209,13 +235,16 @@ function initAIChat() {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question })
+                body: JSON.stringify({ question, history: aiChatHistory })
             });
             const data = await response.json();
             const loadingMessage = messages.querySelector(".ai-chat-message.loading:last-child");
             if (loadingMessage) loadingMessage.remove();
             if (!response.ok) throw new Error(data.detail || "Unable to get an answer.");
             appendAIChatMessage(messages, data.answer || "No answer was returned.", "assistant");
+
+            aiChatHistory.push({ question, answer: data.answer });
+            if (aiChatHistory.length > 4) aiChatHistory.shift();
         } catch (error) {
             const loadingMessage = messages.querySelector(".ai-chat-message.loading:last-child");
             if (loadingMessage) loadingMessage.remove();
@@ -252,18 +281,20 @@ async function loadAIInsights() {
             : "Based on recent demand over the last 90 days.";
 
         container.innerHTML = `
-            <div class="ai-insight ${data.running_out_count ? "high" : "good"}">
-                <div class="insight-icon">${data.running_out_count ? "!" : "✓"}</div>
-                <div><strong>${runningOutLabel}</strong><p>${runningOutDetail}</p></div>
-            </div>
-            <div class="ai-insight ${data.expiring_soon_count ? "medium" : "good"}">
-                <div class="insight-icon">${data.expiring_soon_count ? "!" : "✓"}</div>
-                <div><strong>${data.expiring_soon_count} batch${data.expiring_soon_count === 1 ? "" : "es"} expiring soon</strong><p>Review stock expiring within 60 days.</p></div>
-            </div>
-            <div class="ai-insight good">
-                <div class="insight-icon">✓</div>
-                <div><strong>${data.healthy_percentage}% of stock is healthy</strong><p>Current inventory is within the safe range.</p></div>
-            </div>`;
+        <div class="ai-insight ${data.running_out_count ? "high" : "good"}">
+            <div class="insight-icon">${data.running_out_count ? '<i data-lucide="triangle-alert"></i>' : '<i data-lucide="circle-check"></i>'}</div>
+            <div><strong>${runningOutLabel}</strong><p>${runningOutDetail}</p></div>
+        </div>
+        <div class="ai-insight ${data.expiring_soon_count ? "medium" : "good"}">
+            <div class="insight-icon">${data.expiring_soon_count ? '<i data-lucide="triangle-alert"></i>' : '<i data-lucide="circle-check"></i>'}</div>
+            <div><strong>${data.expiring_soon_count} batch${data.expiring_soon_count === 1 ? "" : "es"} expiring soon</strong><p>Review stock expiring within 60 days.</p></div>
+        </div>
+        <div class="ai-insight good">
+            <div class="insight-icon"><i data-lucide="circle-check"></i></div>
+            <div><strong>${data.healthy_percentage}% of stock is healthy</strong><p>Current inventory is within the safe range.</p></div>
+        </div>`;
+
+        if (window.lucide) lucide.createIcons();    
     } catch (error) {
         console.error("Error loading AI insights:", error);
         container.innerHTML = `<div class="ai-status-error">AI insights are unavailable right now. Refresh to try again.</div>`;
@@ -299,12 +330,14 @@ function initAIAsk() {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question })
+                body: JSON.stringify({ question, history: aiChatHistory })
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.detail || "Unable to get an answer.");
-            answer.textContent = data.answer || "No answer was returned.";
-            answer.className = "ai-answer";
+            appendAIChatMessage(messages, data.answer || "No answer was returned.", "assistant");
+
+            aiChatHistory.push({ question, answer: data.answer });
+            if (aiChatHistory.length > 4) aiChatHistory.shift();
         } catch (error) {
             console.error("Error asking AI:", error);
             answer.textContent = error.message || "Unable to reach the AI service.";
@@ -967,7 +1000,43 @@ function renderRequirementTable(data, tableBody) {
 
 function setText(id, value) {
     const el = document.getElementById(id);
-    if (el) el.textContent = value;
+    if (!el) return;
+
+    if (el.closest(".stat-card") && animateStatValue(el, value)) return;
+    el.textContent = value;
+}
+
+function animateStatValue(el, value) {
+    const targetText = String(value);
+    const match = targetText.match(/^(\D*)([\d,]+(?:\.\d+)?)(.*)$/);
+    if (!match) return false;
+
+    const [, prefix, numericText, suffix] = match;
+    const target = Number(numericText.replace(/,/g, ""));
+    if (!Number.isFinite(target)) return false;
+
+    const startText = el.textContent.trim();
+    const startMatch = startText.match(/^(\D*)([\d,]+(?:\.\d+)?)(.*)$/);
+    const start = startMatch ? Number(startMatch[2].replace(/,/g, "")) : 0;
+    const decimals = (numericText.split(".")[1] || "").length;
+    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
+    const startedAt = performance.now();
+
+    const render = now => {
+        const progress = duration === 0 ? 1 : Math.min((now - startedAt) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = start + (target - start) * eased;
+        const formatted = current.toLocaleString(undefined, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+        el.textContent = `${prefix}${formatted}${suffix}`;
+        if (progress < 1) window.requestAnimationFrame(render);
+    };
+
+    window.cancelAnimationFrame(el._statAnimationFrame);
+    el._statAnimationFrame = window.requestAnimationFrame(render);
+    return true;
 }
 
 function formatDate(dateString) {

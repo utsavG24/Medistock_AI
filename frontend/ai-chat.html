@@ -6,30 +6,69 @@
     <title>AI Chat - MEDISTOCK</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
-<body>
+<body class="app-loading">
+    <div class="app-loading-screen" aria-hidden="true">
+        <div class="skeleton-sidebar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="skeleton-main">
+            <div class="skeleton-heading"><i></i><i></i></div>
+            <div class="skeleton-stats"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+    </div>
     <aside class="sidebar">
         <div class="logo">
             <div class="logo-icon"><img src="img/medistock-icon.png" alt="Medistock logo"></div>
             <div><h2>MEDISTOCK</h2><span>Stock. Track. Forecast.</span></div>
         </div>
-        <nav class="navigation">
-            <a href="home.html" class="nav-item"><span>⌂</span>Home</a>
-            <p class="menu-title">MAIN MENU</p>
-            <a href="index.html" class="nav-item"><span>▣</span>Dashboard</a>
-            <a href="stock.html" class="nav-item"><span>▤</span>Current Stock</a>
-            <a href="expiring-stock.html" class="nav-item"><span>⚠</span>Expiring Stock</a>
-            <a href="stock-requirement.html" class="nav-item"><span>◈</span>Stock Requirement</a>
-            <p class="menu-title">MANAGEMENT</p>
-            <a href="medicine.html" class="nav-item"><span>▥</span>Medicines</a>
-            <a href="analytics.html" class="nav-item"><span>↗</span>Sales Analytics</a>
-            <a href="ai-chat.html" class="nav-item active"><span>✦</span>AI Chat</a>
-            <a href="settings.html" class="nav-item"><span>⚙</span>Settings</a>
-        </nav>
+    <nav class="navigation">
+
+        <a href="home.html" class="nav-item"><span><i data-lucide="home"></i></span>Home</a>
+        <p class="menu-title">MAIN MENU</p>
+
+        <a href="index.html" class="nav-item">
+            <span><i data-lucide="layout-dashboard"></i></span>
+            Dashboard
+        </a>
+
+        <a href="stock.html" class="nav-item">
+            <span><i data-lucide="list"></i></span>
+            Current Stock
+        </a>
+
+        <a href="expiring-stock.html" class="nav-item">
+            <span><i data-lucide="alert-triangle"></i></span>
+            Expiring Stock
+        </a>
+
+        <a href="stock-requirement.html" class="nav-item">
+            <span><i data-lucide="clipboard-list"></i></span>
+            Stock Requirement
+        </a>
+
+        <p class="menu-title">MANAGEMENT</p>
+
+        <a href="medicine.html" class="nav-item">
+            <span><i data-lucide="pill"></i></span>
+            Medicines
+        </a>
+
+        <a href="analytics.html" class="nav-item">
+            <span><i data-lucide="trending-up"></i></span>
+            Sales Analytics
+        </a>
+
+        <a href="ai-chat.html" class="nav-item active"><span><i data-lucide="sparkles"></i></span>AI Chat</a>
+        <a href="settings.html" class="nav-item">
+            <span><i data-lucide="settings"></i></span>
+            Settings
+        </a>
+    </nav>
         <div class="sidebar-bottom">
             <div class="admin-avatar">A</div>
             <div class="admin-info"><strong>Admin</strong><span>Pharmacy Manager</span></div>
-            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;">↪</span>
+            <span class="logout" onclick="logoutAdmin()" style="cursor:pointer;"><i data-lucide="log-out"></i></span>
         </div>
     </aside>
 

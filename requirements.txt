@@ -1,8 +1,9 @@
 fastapi
 uvicorn[standard]
 SQLAlchemy
-psycopg2-binary
+psycopg[binary]
 python-dotenv
 bcrypt
 google-genai
-httpx2
+httpx
+itsdangerous

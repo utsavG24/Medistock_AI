@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="icon" type="image/png" href="img/medistock-icon-32.png">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
 
@@ -75,7 +76,92 @@
 
         </div>
     </div>
+    <style>
+.auth-decor svg {
+    will-change: transform;
+}
+</style>
 
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const shapes = document.querySelectorAll(".auth-decor svg");
+
+    const settings = [
+        { floatX: 8, floatY: 12, rotate: 4, speed: 0.0012, phase: 0 },
+        { floatX: 10, floatY: 8, rotate: -5, speed: 0.0010, phase: 1.5 },
+        { floatX: 7, floatY: 14, rotate: 3, speed: 0.0014, phase: 3 },
+        { floatX: 12, floatY: 10, rotate: -4, speed: 0.0011, phase: 4.5 },
+        { floatX: 9, floatY: 13, rotate: 5, speed: 0.0013, phase: 6 }
+    ];
+
+    let mouseX = -1000;
+    let mouseY = -1000;
+    let time = 0;
+
+    document.addEventListener("mousemove", function (e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+    });
+
+    function animate() {
+
+        time += 16;
+
+        shapes.forEach(function (shape, index) {
+
+            const s = settings[index % settings.length];
+
+            const rect = shape.getBoundingClientRect();
+
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            const dx = mouseX - centerX;
+            const dy = mouseY - centerY;
+
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            let mouseMoveX = 0;
+            let mouseMoveY = 0;
+            let mouseRotate = 0;
+
+            // Cursor interaction
+            if (distance < 220 && distance > 0) {
+
+                const force = Math.pow((220 - distance) / 220, 2);
+
+                mouseMoveX = -(dx / distance) * force * 55;
+                mouseMoveY = -(dy / distance) * force * 55;
+
+                mouseRotate = -(dx / distance) * force * 8;
+            }
+
+            // Gentle floating movement
+            const floatX =
+                Math.sin(time * s.speed + s.phase) * s.floatX;
+
+            const floatY =
+                Math.cos(time * s.speed * 1.15 + s.phase) * s.floatY;
+
+            const floatRotate =
+                Math.sin(time * s.speed * 0.8 + s.phase) * s.rotate;
+
+            shape.style.transform =
+                `translate(
+                    ${floatX + mouseMoveX}px,
+                    ${floatY + mouseMoveY}px
+                )
+                rotate(${floatRotate + mouseRotate}deg)`;
+        });
+
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+
+});
+</script>
     <script src="js/auth.js"></script>
 </body>
 </html>

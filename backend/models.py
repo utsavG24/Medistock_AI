@@ -58,3 +58,4 @@ class Return(Base):
     return_type = Column(String)
     reason = Column(String)
     return_date = Column(Date)
+

@@ -8,14 +8,14 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 BASE_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BASE_DIR / ".env")
 
+POSTGRES_BIN = Path("C:/Program Files/PostgreSQL/18/bin")
+if POSTGRES_BIN.exists():
+    os.environ["PATH"] = f"{POSTGRES_BIN}{os.pathsep}{os.environ.get('PATH', '')}"
+    if hasattr(os, "add_dll_directory"):
+        os.add_dll_directory(str(POSTGRES_BIN))
+
 DEFAULT_SQLITE_PATH = str(BASE_DIR / "medistock.db")
 DATABASE_URL = os.getenv("DATABASE_URL")
-
-if DATABASE_URL and DATABASE_URL.startswith("postgresql"):
-    try:
-        import psycopg2  # noqa: F401
-    except Exception:
-        DATABASE_URL = f"sqlite:///{DEFAULT_SQLITE_PATH}"
 
 if not DATABASE_URL:
     DATABASE_URL = f"sqlite:///{DEFAULT_SQLITE_PATH}"
@@ -23,6 +23,9 @@ if not DATABASE_URL:
 engine_kwargs = {}
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs["pool_pre_ping"] = True   # tests each connection before using it
+    engine_kwargs["pool_recycle"] = 300     # recycle connections older than 5 min
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine)
