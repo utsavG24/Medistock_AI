@@ -35,8 +35,6 @@ h2 {
 .logo-icon {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -70,7 +68,9 @@ h2 {
     top: 0;
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(8px);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 4px 20px rgba(16, 24, 40, 0.03);
+    box-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.02),
+        0 4px 20px rgba(16, 24, 40, 0.03);
     z-index: 10;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -92,18 +92,23 @@ h2 {
 .home-nav .logo-icon {
     width: 42px;
     height: 42px;
-    border-radius: 12px;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: transform 0.25s ease, filter 0.25s ease;
 }
 
 .home-nav .logo-icon img {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    display: block;
+}
+
+.home-nav .logo:hover .logo-icon {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 9px rgba(22, 163, 74, 0.35));
 }
 
 .home-nav .logo-text {
