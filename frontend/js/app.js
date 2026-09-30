@@ -2,7 +2,7 @@
 // MEDISTOCK - FRONTEND JAVASCRIPT
 // ======================================================
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://medistock-ai-bopf.onrender.com";
 let aiChatHistory = [];  // keeps recent Q&A turns for follow-up questions like "which?"
 
 

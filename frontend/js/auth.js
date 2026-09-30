@@ -2,7 +2,7 @@
 // MEDISTOCK - AUTHENTICATION
 // ======================================================
 
-const AUTH_API_BASE = "http://127.0.0.1:8000";
+const AUTH_API_BASE = "https://medistock-ai-bopf.onrender.com";
 
 function switchTab(tab) {
     document.getElementById("loginTab").classList.toggle("active", tab === "login");
