@@ -128,11 +128,12 @@ body.page-ready .main-content {
 
 .sidebar-toggle {
     position: fixed;
-    top: 18px;
-    left: 205px;
+    top: 12%;
+    margin-top: -16px;
+    left: 7px;
     z-index: 130;
-    width: 32px;
-    height: 32px;
+    width: 25px;
+    height: 25px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     background: #ffffff;
@@ -143,7 +144,6 @@ body.page-ready .main-content {
     box-shadow: 0 4px 12px rgba(0, 0, 0, .08);
     transition: left 0.25s ease, transform 0.2s ease, background 0.2s ease;
 }
-
 .sidebar-toggle:hover {
     transform: translateY(-2px);
     background: #f0fdf8;
@@ -224,11 +224,19 @@ body.page-ready .main-content {
 
 .logo h2 {
     font-size: 18px;
+    font-weight: 800; 
+    letter-spacing: -0.3px;
 }
 
 .logo span {
     font-size: 11px;
     color: #7b8794;
+}
+
+.logo-divider {
+    width: 1px;
+    align-self: stretch;
+    background: #d1d5db;
 }
 
 
@@ -1307,6 +1315,285 @@ html.dark-mode .panel-header h3 [data-lucide] {
     .ai-chat-prompts { order: -1; }
     .ai-chat-panel { min-height: 480px; }
     .ai-chat-messages { min-height: 300px; }
+}
+
+/* ======================================================
+   AI CHAT - ACTIVE LOADING STATE
+   ====================================================== */
+
+.ai-chat-message.assistant.loading {
+    position: relative;
+    overflow: hidden;
+
+    width: fit-content;
+    max-width: 80%;
+    padding: 8px 12px;
+    margin: 6px 0;
+    border-radius: 10px;
+    box-sizing: border-box;
+
+    border: 1px solid rgba(99, 102, 241, 0.35);
+
+    animation:
+        aiLoadingGlow 2s ease-in-out infinite,
+        aiLoadingFloat 3s ease-in-out infinite,
+        aiLoadingShimmer 3s linear infinite;
+
+    background:
+        linear-gradient(
+            110deg,
+            rgba(99, 102, 241, 0.04),
+            rgba(139, 92, 246, 0.10),
+            rgba(99, 102, 241, 0.04)
+        );
+
+    background-size: 200% 100%;
+}
+
+/* Moving light across the message */
+
+.ai-chat-message.assistant.loading::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.18),
+        transparent
+    );
+
+    transform: skewX(-20deg);
+    animation: aiLoadingSweep 2.2s ease-in-out infinite;
+}
+
+
+/* Loading contents */
+
+.ai-loading-content {
+    position: relative;
+    z-index: 1;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    height: 16px;
+    min-height: 16px;
+
+    line-height: 1;
+    white-space: nowrap;
+}
+
+
+/* Small glowing AI orb */
+
+.ai-loading-orb {
+    display: block;
+
+    width: 7px !important;
+    height: 7px !important;
+
+    min-width: 7px;
+    min-height: 7px;
+
+    flex: 0 0 7px;
+
+    margin: 0;
+    padding: 0;
+
+    border-radius: 50%;
+
+    background: #6366f1;
+
+    box-shadow:
+        0 0 5px rgba(99, 102, 241, 0.8),
+        0 0 12px rgba(99, 102, 241, 0.5);
+
+    animation: aiOrbPulse 1.2s ease-in-out infinite;
+}
+
+
+/* Changing status text */
+
+.ai-loading-text {
+    display: block;
+    margin: 0;
+    padding: 0;
+
+    font-size: 12px;
+    line-height: 1;
+
+    transition:
+        opacity 0.18s ease,
+        transform 0.18s ease;
+
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.ai-loading-text.changing {
+    opacity: 0;
+    transform: translateY(3px);
+}
+
+
+/* Three animated dots */
+
+.ai-loading-dots {
+    display: inline-flex;
+    gap: 3px;
+    margin-left: 2px;
+}
+
+.ai-loading-dots span {
+    width: 3px;
+    height: 3px;
+
+    border-radius: 50%;
+    background: currentColor;
+
+    animation: aiDotPulse 1.2s ease-in-out infinite;
+}
+
+.ai-loading-dots span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.ai-loading-dots span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+.ai-chat-message.assistant.loading {
+    width: fit-content !important;
+    height: auto !important;
+    min-height: 0 !important;
+
+    padding: 5px 10px !important;
+    margin: 4px 0 !important;
+
+    line-height: 1 !important;
+    box-sizing: border-box;
+}
+
+.ai-chat-message.assistant.loading .ai-loading-content {
+    height: 16px;
+    min-height: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    font-size: 12px;
+    line-height: 1;
+}
+
+.ai-chat-message.assistant.loading .ai-loading-orb {
+    width: 6px;
+    height: 6px;
+    flex: 0 0 6px;
+}
+
+.ai-chat-message.assistant.loading .ai-loading-dots span {
+    width: 3px;
+    height: 3px;
+}
+
+
+/* Border glow */
+
+@keyframes aiLoadingGlow {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 rgba(99, 102, 241, 0),
+            inset 0 0 0 rgba(99, 102, 241, 0);
+    }
+
+    50% {
+        box-shadow:
+            0 0 16px rgba(99, 102, 241, 0.18),
+            inset 0 0 12px rgba(99, 102, 241, 0.04);
+    }
+}
+
+
+/* Background movement */
+
+@keyframes aiLoadingShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+
+/* Moving highlight */
+
+@keyframes aiLoadingSweep {
+    0% {
+        left: -40%;
+    }
+
+    55%,
+    100% {
+        left: 120%;
+    }
+}
+
+
+/* Orb */
+
+@keyframes aiOrbPulse {
+    0%,
+    100% {
+        transform: scale(0.8);
+        opacity: 0.55;
+    }
+
+    50% {
+        transform: scale(1.15);
+        opacity: 1;
+    }
+}
+
+
+/* Dots */
+
+@keyframes aiDotPulse {
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.35;
+    }
+
+    50% {
+        transform: translateY(-3px);
+        opacity: 1;
+    }
+}
+
+
+/* Reduced-motion accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+    .ai-chat-message.assistant.loading,
+    .ai-chat-message.assistant.loading::before,
+    .ai-loading-orb,
+    .ai-loading-dots span {
+        animation: none;
+    }
+
+    .ai-loading-text {
+        transition: none;
+    }
 }
 
 

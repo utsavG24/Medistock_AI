@@ -914,6 +914,36 @@ def build_budget_reorder_answer(question: str, requirements: list[dict]):
     lines.append(f"Total: ₹{spent:,.2f} | Remaining budget: ₹{remaining:,.2f}")
     return "\n".join(lines)
 
+def build_full_reorder_list_answer(question: str, requirements: list[dict]):
+    normalized_question = question.lower()
+    asks_reorder = "reorder" in normalized_question
+    asks_full_list = any(phrase in normalized_question for phrase in (
+        "list every", "full list", "every medicine", "all medicines",
+        "which medicines need", "needs reordering", "need reordering"
+    ))
+    if not (asks_reorder and asks_full_list):
+        return None
+
+    if not requirements:
+        return "No medicines currently need reordering."
+
+    lines = ["Medicines that need reordering:"]
+    for index, item in enumerate(requirements, start=1):
+        days_left = (
+            f"{item['days_of_stock_left']} days left"
+            if item["days_of_stock_left"] is not None
+            else "stockout risk"
+        )
+        lines.append(
+            f"{index}. {item['name']} — current stock: {item['current_stock']} {item['unit']}; "
+            f"reorder level: {item['reorder_level']} {item['unit']}; "
+            f"suggested order: {item['suggested_order_qty']} {item['unit']} "
+            f"(₹{item['estimated_cost']:,.2f}); {days_left}."
+        )
+    lines.append(f"Total medicines needing reorder: {len(requirements)}")
+    return "\n".join(lines)
+
+
 def build_total_reorder_cost_answer(question: str, requirements: list[dict]):
     normalized_question = question.lower()
     asks_for_total = "total" in normalized_question and (
@@ -1058,6 +1088,8 @@ def build_low_stock_answer(question: str, db: Session):
         )
     lines.append(f"Total medicines needing reorder: {len(results)}")
     return "\n".join(lines)
+
+
 
 def get_generic_name(full_name: str) -> str:
     return full_name.split()[0].lower() if full_name else ""
@@ -1501,6 +1533,10 @@ def ask_ai(data: AskRequest, db: Session = Depends(get_db), _: int = Depends(req
     budget_answer = build_budget_reorder_answer(data.question, requirement_data)
     if budget_answer:
         return {"answer": budget_answer}
+
+    full_reorder_answer = build_full_reorder_list_answer(data.question, requirement_data)
+    if full_reorder_answer:
+        return {"answer": full_reorder_answer}
 
     extended_answer = build_extended_answers(data.question, db, data.history)
     if extended_answer:

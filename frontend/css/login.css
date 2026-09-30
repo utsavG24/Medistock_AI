@@ -85,8 +85,10 @@ body {
 }
 
 .auth-logo h2 {
-    margin: 0;
     font-size: 18px;
+    font-weight: 800; 
+    letter-spacing: -0.3px;
+    font-family: Helvetica, Arial, sans-serif;
 }
 
 .auth-logo span {

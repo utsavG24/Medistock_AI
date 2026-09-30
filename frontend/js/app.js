@@ -227,7 +227,7 @@ function initAIChat() {
         appendAIChatMessage(messages, question, "user");
         input.value = "";
         button.disabled = true;
-        appendAIChatMessage(messages, "Reviewing your complete inventory data...", "assistant loading");
+        const loadingMessage= appendAIChatLoading(messages);
         messages.scrollTop = messages.scrollHeight;
 
         try {
@@ -238,17 +238,22 @@ function initAIChat() {
                 body: JSON.stringify({ question, history: aiChatHistory })
             });
             const data = await response.json();
-            const loadingMessage = messages.querySelector(".ai-chat-message.loading:last-child");
-            if (loadingMessage) loadingMessage.remove();
+            if (loadingMessage) {
+                loadingMessage.stop();
+                loadingMessage.remove();
+            }
             if (!response.ok) throw new Error(data.detail || "Unable to get an answer.");
             appendAIChatMessage(messages, data.answer || "No answer was returned.", "assistant");
 
             aiChatHistory.push({ question, answer: data.answer });
             if (aiChatHistory.length > 4) aiChatHistory.shift();
         } catch (error) {
-            const loadingMessage = messages.querySelector(".ai-chat-message.loading:last-child");
-            if (loadingMessage) loadingMessage.remove();
-            appendAIChatMessage(messages, error.message || "Unable to reach the AI service.", "assistant error");
+            if (loadingMessage) {
+                loadingMessage.stop();
+                loadingMessage.remove();
+            }
+
+            appendAIChatMessage(messages,"Sorry, something went wrong. Please try again.","assistant error");
         } finally {
             button.disabled = false;
             input.focus();
@@ -262,6 +267,58 @@ function appendAIChatMessage(container, text, type) {
     message.className = `ai-chat-message ${type}`;
     message.textContent = text;
     container.appendChild(message);
+}
+function appendAIChatLoading(container) {
+    const message = document.createElement("div");
+    message.className = "ai-chat-message assistant loading";
+
+    message.innerHTML = `
+        <div class="ai-loading-content">
+            <span class="ai-loading-orb"></span>
+
+            <span class="ai-loading-text">Reviewing your complete inventory data</span>
+
+            <span class="ai-loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </span>
+        </div>
+    `;
+
+    container.appendChild(message);
+
+    const statuses = [
+        "Reviewing your complete inventory data",
+        "Checking stock levels",
+        "Analyzing medicine records",
+        "Looking for relevant patterns",
+        "Preparing your answer"
+    ];
+
+    let index = 0;
+
+    const textElement = message.querySelector(".ai-loading-text");
+
+    const interval = setInterval(() => {
+        index = (index + 1) % statuses.length;
+
+        textElement.classList.add("changing");
+
+        setTimeout(() => {
+            if (!message.isConnected) return;
+
+            textElement.textContent = statuses[index];
+            textElement.classList.remove("changing");
+        }, 180);
+
+    }, 1800);
+
+    message.stop = () => {
+        clearInterval(interval);
+    };
+
+    return message;
 }
 
 async function loadAIInsights() {
