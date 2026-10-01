@@ -199,6 +199,14 @@
                 <input type="text" id="actionReason" placeholder="e.g. damaged packaging">
             </div>
 
+            <div id="actionSaleUnitField" style="display:none;">
+                <label for="actionSaleUnit">Sell as</label>
+                <select id="actionSaleUnit">
+                    <option value="unit">Individual units</option>
+                    <option value="strip">Strips</option>
+                </select>
+            </div>
+
             <div id="actionReceivedField" style="display:none;">
                 <label for="actionReceived">Replacement units received</label>
                 <input type="number" id="actionReceived" min="0" placeholder="0 if none">

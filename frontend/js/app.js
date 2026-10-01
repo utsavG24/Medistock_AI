@@ -659,36 +659,55 @@ function openActionModal(batchId, action, medicineName, currentStock, unitsPerSt
         supplier_return: "Supplier Return / Exchange"
     };
 
-    document.getElementById("actionModalTitle").textContent = titles[action];
-    document.getElementById("actionModalMedicine").textContent = medicineName;
+    const titleEl = document.getElementById("actionModalTitle");
+    const medicineEl = document.getElementById("actionModalMedicine");
+    const stockEl = document.getElementById("actionModalStock");
+    const quantityEl = document.getElementById("actionQuantity");
+    const reasonEl = document.getElementById("actionReason");
+    const receivedEl = document.getElementById("actionReceived");
+    const reasonField = document.getElementById("actionReasonField");
+    const receivedField = document.getElementById("actionReceivedField");
+    const saleUnitField = document.getElementById("actionSaleUnitField");
+    const saleUnitEl = document.getElementById("actionSaleUnit");
+    const messageEl = document.getElementById("actionMessage");
+    const overlay = document.getElementById("actionModalOverlay");
+
+    if (titleEl) titleEl.textContent = titles[action];
+    if (medicineEl) medicineEl.textContent = medicineName;
     const stripSummary = unitsPerStrip > 1
         ? ` (${Math.floor(currentStock / unitsPerStrip)} full strip${Math.floor(currentStock / unitsPerStrip) === 1 ? "" : "s"}, ${currentStock % unitsPerStrip} loose)`
         : "";
-    document.getElementById("actionModalStock").textContent = `Current stock: ${currentStock} ${unit}${stripSummary}`;
-    document.getElementById("actionQuantity").value = "";
-    document.getElementById("actionReason").value = "";
-    document.getElementById("actionReceived").value = "";
-
-    document.getElementById("actionReasonField").style.display = action === "sell" ? "none" : "block";
-    document.getElementById("actionReceivedField").style.display = action === "supplier_return" ? "block" : "none";
-    document.getElementById("actionSaleUnitField").style.display = action === "sell" ? "block" : "none";
-    document.getElementById("actionSaleUnit").value = "unit";
-    document.getElementById("actionSaleUnit").dataset.unitsPerStrip = String(unitsPerStrip || 1);
-    document.getElementById("actionSaleUnit").dataset.unit = unit;
-
-    document.getElementById("actionMessage").textContent = "";
-    document.getElementById("actionModalOverlay").style.display = "flex";
+    if (stockEl) stockEl.textContent = `Current stock: ${currentStock} ${unit}${stripSummary}`;
+    if (quantityEl) quantityEl.value = "";
+    if (reasonEl) reasonEl.value = "";
+    if (receivedEl) receivedEl.value = "";
+    if (reasonField) reasonField.style.display = action === "sell" ? "none" : "block";
+    if (receivedField) receivedField.style.display = action === "supplier_return" ? "block" : "none";
+    if (saleUnitField) saleUnitField.style.display = action === "sell" ? "block" : "none";
+    if (saleUnitEl) {
+        saleUnitEl.value = "unit";
+        saleUnitEl.dataset.unitsPerStrip = String(unitsPerStrip || 1);
+        saleUnitEl.dataset.unit = unit;
+    }
+    if (messageEl) messageEl.textContent = "";
+    if (overlay) overlay.style.display = "flex";
 }
 function closeActionModal() {
     document.getElementById("actionModalOverlay").style.display = "none";
 }
 
 async function submitAction() {
-    const quantity = parseInt(document.getElementById("actionQuantity").value, 10);
-    const reason = document.getElementById("actionReason").value.trim();
-    const quantityReceived = parseInt(document.getElementById("actionReceived").value, 10) || 0;
-    const saleUnit = document.getElementById("actionSaleUnit").value;
+    const quantityInput = document.getElementById("actionQuantity");
+    const reasonInput = document.getElementById("actionReason");
+    const receivedInput = document.getElementById("actionReceived");
+    const saleUnitSelect = document.getElementById("actionSaleUnit");
     const messageEl = document.getElementById("actionMessage");
+    if (!quantityInput || !messageEl) return;
+
+    const quantity = parseInt(quantityInput.value, 10);
+    const reason = reasonInput ? reasonInput.value.trim() : "";
+    const quantityReceived = parseInt(receivedInput?.value || "0", 10) || 0;
+    const saleUnit = saleUnitSelect ? saleUnitSelect.value : "unit";
     messageEl.textContent = "";
     messageEl.style.color = "#dc2626";
 
@@ -696,7 +715,7 @@ async function submitAction() {
         messageEl.textContent = "Enter a quantity greater than 0.";
         return;
     }
-    const unitsPerStrip = Number(document.getElementById("actionSaleUnit").dataset.unitsPerStrip || 1);
+    const unitsPerStrip = Number(saleUnitSelect?.dataset.unitsPerStrip || 1);
     const quantityInUnits = currentAction === "sell" && saleUnit === "strip"
         ? quantity * unitsPerStrip
         : quantity;
@@ -1856,17 +1875,19 @@ function initSidebarToggle() {
     document.body.appendChild(toggle);
 
     const savedState = localStorage.getItem("medistock-sidebar-collapsed");
-    const shouldCollapse = savedState === "true" || (savedState === null && window.innerWidth <= 700);
-    setSidebarCollapsed(shouldCollapse, toggle);
+    const isMobile = window.innerWidth <= 700;
+    const shouldCollapse = isMobile || savedState === "true";
+    setSidebarCollapsed(shouldCollapse, toggle, !isMobile);
 
     toggle.addEventListener("click", () => {
-        setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"), toggle);
+        const isMobile = window.innerWidth <= 700;
+        setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"), toggle, !isMobile);
     });
 }
 
-function setSidebarCollapsed(collapsed, toggle) {
+function setSidebarCollapsed(collapsed, toggle, persist = true) {
     document.body.classList.toggle("sidebar-collapsed", collapsed);
-    localStorage.setItem("medistock-sidebar-collapsed", String(collapsed));
+    if (persist) localStorage.setItem("medistock-sidebar-collapsed", String(collapsed));
     toggle.setAttribute("aria-expanded", String(!collapsed));
     toggle.setAttribute("aria-label", collapsed ? "Open navigation" : "Collapse navigation");
     toggle.classList.toggle("is-collapsed", collapsed);
