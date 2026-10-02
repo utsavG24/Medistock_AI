@@ -77,6 +77,14 @@ The product is designed for pharmacy administrators who need a clear operational
 - Reset preferences action.
 - FAQ guidance explaining archive versus permanent deletion.
 
+### AI Assistant
+
+- Conversational pharmacy assistant for inventory, sales, returns, expiries, and reorder questions.
+- Uses the backend request pipeline with Gemini or Ollama selected through `AI_PROVIDER`; an optional fallback model is a second Gemini model, not cross-provider fallback.
+- Supports voice input for natural-language queries.
+- Retains recent chat context so follow-up questions can reference earlier answers.
+- Provides operational guidance based on current medicine, batch, and stock data rather than static text alone.
+
 ## 4. Shared Platform Behavior
 
 ### Authentication
@@ -163,7 +171,7 @@ The product is designed for pharmacy administrators who need a clear operational
 
 The Medicine model includes an `is_active` flag. Existing PostgreSQL databases receive the column through a startup migration using `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
 
-## 7. Current Status
+## 7. Current Status and Progress Report
 
 ### Completed
 
@@ -174,6 +182,7 @@ The Medicine model includes an `is_active` flag. Existing PostgreSQL databases r
 - Expiring stock page.
 - Stock requirement page.
 - Sales analytics page.
+- AI assistant page with conversational querying, Gemini/Ollama support, and voice input.
 - Settings page with theme, preferences, FAQ, and support section.
 - Interactive notifications.
 - Medicines page with batch management.
@@ -183,28 +192,58 @@ The Medicine model includes an `is_active` flag. Existing PostgreSQL databases r
 - Compact page information cards across core pages.
 - Dashboard View All link to paginated Current Stock.
 
+### Progress Summary
+
+The core pharmacy inventory workflow is implemented, but a static backend review found API authorization, inventory-integrity, and deployment-hardening gaps that should be closed before production use. The product is in stabilization, but these findings mean the backend is not yet production-ready.
+
+The AI assistant is now part of the product surface and works as a contextual query layer over medicine, stock, sales, returns, and replenishment data. This adds a valuable operational layer for pharmacists and admins but should still be treated as an active feature requiring validation against a real deployment environment and data quality checks.
+
 ### Validation Completed
 
 - JavaScript syntax checks with `node --check`.
 - Python syntax checks with `python -m py_compile`.
 - VS Code diagnostics checked for changed files.
 - Live medicine endpoint response verified during development.
+- FastAPI startup smoke test of the dashboard sales-trend endpoint completed successfully.
 - Git diff formatting checked for whitespace errors.
+
+### Backend Review Findings (Static Review — 2026-10-02)
+
+This review inspected the FastAPI route definitions, request models, SQLAlchemy models, database setup, AI request pipeline, and frontend API calls. It did not inspect `.env`, contact a live API, or execute database mutations. Findings are based on code and should be verified with regression tests before release.
+
+| Priority | Finding | Evidence / impact |
+|---|---|---|
+| Critical | Authentication is not enforced consistently. Dashboard, stock, transaction, stock-requirement, sales, and return routes have no `require_admin` dependency. This exposes pharmacy data and allows unauthenticated stock and transaction changes. | `backend/main.py`: `/dashboard/*`, `/stock/*`, `/sales`, `/returns/*`, and `/transactions`. `/medicines` and `/ai/*` do require a session. |
+| High | Public signup has no invitation or owner-approval gate, while the data models do not associate medicines, batches, sales, or returns with a pharmacy/admin. If public signup is enabled, a second account has no data boundary from the first. | Signup: `backend/main.py`; shared entities: `backend/models.py`. |
+| High | Sale and return request quantities are plain integers without positive-value constraints. Negative values can reverse stock changes and create negative or otherwise invalid transaction history; supplier replacement quantity is also unconstrained. | Request models and stock mutations: `backend/main.py` (`SellRequest`, `CustomerReturnRequest`, `SupplierReturnRequest`, `/sales`, `/returns/*`). |
+| High | Stock availability is read, checked, and then updated without row locking or an atomic conditional update. Concurrent sale/return requests can both pass stale checks and leave stock and transaction history inconsistent. | Sale and return handlers: `backend/main.py` (`sell_stock`, `customer_return`, `supplier_return`). |
+| Medium | Archive does not check that remaining stock is zero, despite the product safety rule. Separately, AI insights counts and classifies batches without consistently filtering archived medicines, so archived stock can distort its results. | `backend/main.py` (`archive_medicine`, `get_ai_insights`). |
+| Medium | The configured AI provider is selected exclusively: Gemini's optional fallback is another Gemini model, while Ollama failures return an error. There is no Gemini-to-Ollama or Ollama-to-Gemini fallback. AI inputs also lack field-size/history-shape bounds; Gemini receives selected pharmacy data outside this application, and Ollama requests can occupy a worker for up to 180 seconds. Context truncation may cut off the question appended after the data. | `backend/main.py` (`AskRequest`, `generate_with_ollama`, `ask_ai`). |
+| Medium | If `DATABASE_URL` is missing, the backend silently selects a local SQLite file even in production. On an ephemeral deployment this can cause data loss or an unexpected empty database. | `backend/database.py` (`DATABASE_URL`, `DEFAULT_SQLITE_PATH`). |
+| Medium | Several list/report endpoints load all matching records without pagination or result limits; request throttling is also absent for login, signup, and AI. This creates avoidable database, memory, and worker-exhaustion risk as usage/data grows. | Examples: `backend/main.py` (`get_medicines`, `get_transactions`, AI routes); no rate limiting found in reviewed backend. |
+| Medium | Low-stock summaries use an inner join against medicine stock aggregates, so active medicines with no batch rows are omitted instead of appearing as zero-stock items. AI insights also aggregates archived inventory in some totals. | `backend/main.py` (`get_summary`, `get_low_stock`, `get_ai_insights`). |
+
+**Release assessment:** Resolve the Critical and High findings, add regression tests for unauthorized requests, negative quantities, and concurrent stock operations, and verify production database configuration before deploying. The frontend currently omits `credentials: "include"` for some dashboard and stock fetches, so those calls must be updated as part of enforcing API authentication.
 
 ## 8. Immediate To-Do
 
 ### High Priority
 
+- Enforce authenticated admin access on every pharmacy-data endpoint and finalize the intended signup/tenant-isolation model.
+- Add positive quantity, non-negative reorder-level, numeric price, and maximum text-length constraints to request models and database schema.
+- Make sale and return stock changes atomic under concurrent requests.
+- Enforce the zero-stock archive rule and align AI insight calculations with active-medicine visibility.
 - Add automated backend tests for archive, restore, delete, sale, and return safety rules.
+- Add authentication, invalid-input, and concurrent inventory-operation regression tests.
 - Add frontend interaction tests for sidebar, notifications, pagination, and medicine actions.
 - Restart the FastAPI server in each environment after deployment so the `is_active` migration runs.
 - Verify the PostgreSQL schema migration on a backup or staging database before production use.
-- Add server-side validation for maximum field lengths and non-negative reorder levels.
-- Replace the hard-coded session secret with an environment variable.
-- Move the database URL and API base URL to environment configuration.
+- Require `DATABASE_URL` in production and move the frontend API base URL to environment configuration.
 
 ### Medium Priority
 
+- Bound AI question/history payloads, configure provider timeouts and request throttling, decide whether true cross-provider fallback is required, and review what pharmacy data may be sent to hosted model providers.
+- Add pagination and indexes for inventory, transaction, and analytics queries.
 - Make Settings notification toggles actively control which alerts are generated.
 - Add loading states and retry controls for API-backed pages.
 - Improve API error handling for expired sessions and network failures.

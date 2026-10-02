@@ -291,6 +291,9 @@ def get_summary(db: Session = Depends(get_db)):
         "expiring_soon_count": expiring_count
     }
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 @app.get("/dashboard/sales-trend")
 def get_sales_trend(period: str = "6m", db: Session = Depends(get_db)):
